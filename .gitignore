@@ -1,0 +1,13 @@
+*.user
+
+# crap to reinclude gwsynthesis & pnr to unignore some stuff back
+
+**/impl/*/
+
+!**/impl/gwsynthesis/
+!**/impl/pnr/
+
+**/impl/gwsynthesis/*
+**/impl/pnr/*
+
+!**/impl/**/*.cfg
