@@ -21,9 +21,14 @@ module spi_gpu
     output logic framebuffer_clk_rgb, framebuffer_clk_palette,
     output logic framebuffer_wren_rgb, framebuffer_wren_palette,
 
+    input logic framebuffer_hblank, framebuffer_vblank,
+
     output logic test_led_ready, test_led_done,
     output logic [7:0] test_led
 );
+
+//spi stuff
+//
 
 typedef enum 
 { //funny values for 4-led presentation
@@ -34,26 +39,30 @@ typedef enum
     DONE = 8        //set on last falling SCLK edge, waiting for CS to go high
 } spi_state;
 
+spi_state current_state, next_state;
+
 wire spi_reset = cs | reset;
 
 logic [3:0] data_in;
 logic [3:0] data_out;
 
-logic data_out_enable;
-
 assign {mosi_d0, miso_d1, d2, d3} = current_state == WRITE ? data_out : 4'bZZZZ;
 assign data_in = {mosi_d0, miso_d1, d2, d3};
 
-spi_state current_state, next_state;
+//internal registers
+//
 
 logic output_enabled;
 
-logic [7:0] command_bits;
+assign status_register0 = {5'b0, framebuffer_hblank, framebuffer_vblank, output_enabled};
 
 int counter;
 logic [3:0] tmp1, tmp2, tmp3;
 logic [7:0] tmp4, tmp5, tmp6;
 logic [23:0] tmp7, tmp8, tmp9;
+
+//commands
+//
 
 logic read_done, write_done;
 
@@ -67,6 +76,8 @@ typedef enum bit[7:0]
     COMMAND_DISABLE_OUTPUT                  = 8'b00000000,
     COMMAND_ENABLE_OUTPUT                   = 8'b00000001    
 } command_code;
+
+logic [7:0] command_bits;
 
 command_code command_enum;
 
@@ -261,7 +272,7 @@ begin
                 WRITE :             
                 begin
                     unique0 case (command_enum)
-                        COMMAND_READ_STATUS0 : {data_out, tmp1} <= {7'b1101011, output_enabled};
+                        COMMAND_READ_STATUS0 : {data_out, tmp1} <= status_register0;
                         COMMAND_FRAMEBUFFER_GET_PALETTE : {data_out, tmp8[23:4]} <= framebuffer_palette_out;
                     endcase
                 end

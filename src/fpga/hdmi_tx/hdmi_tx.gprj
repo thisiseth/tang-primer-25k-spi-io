@@ -5,6 +5,7 @@
     <Version>5</Version>
     <Device name="GW5A-25A" pn="GW5A-LV25MG121NES">gw5a25a-000</Device>
     <FileList>
+        <File path="src/top.sv" type="file.verilog" enable="1"/>
         <File path="src/framebuffer.sv" type="file.verilog" enable="1"/>
         <File path="src/gowin/pll_hdmi_1080.v" type="file.verilog" enable="1"/>
         <File path="src/gowin/pll_hdmi_480.v" type="file.verilog" enable="1"/>
@@ -19,7 +20,6 @@
         <File path="src/hdmi/source_product_description_info_frame.sv" type="file.verilog" enable="1"/>
         <File path="src/hdmi/tmds_channel.sv" type="file.verilog" enable="1"/>
         <File path="src/spi_gpu.sv" type="file.verilog" enable="1"/>
-        <File path="src/top.sv" type="file.verilog" enable="1"/>
         <File path="src/pins.cst" type="file.cst" enable="1"/>
         <File path="src/timing.sdc" type="file.sdc" enable="1"/>
     </FileList>

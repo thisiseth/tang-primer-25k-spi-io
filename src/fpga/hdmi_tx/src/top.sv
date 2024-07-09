@@ -69,6 +69,8 @@ logic[7:0] framebuffer_palette_addr;
 logic framebuffer_clk_rgb, framebuffer_clk_palette;
 logic framebuffer_wren_rgb, framebuffer_wren_palette;
 
+logic framebuffer_hblank, framebuffer_vblank;
+
 // Border test (left = red, top = green, right = blue, bottom = blue, fill = black)
 //always @(posedge clk_pixel)
 //  rgb <= {cx == 0 ? ~8'd0 : 8'd0, 
@@ -111,6 +113,8 @@ framebuffer framebuffer
     .clk_rgb(framebuffer_clk_rgb), .clk_palette(framebuffer_clk_palette),
     .wren_rgb(framebuffer_wren_rgb), .wren_palette(framebuffer_wren_palette),
 
+    .hblank(framebuffer_hblank), .vblank(framebuffer_vblank),
+
     .clk_pixel(clk_pixel),
     .screen_rgb_out(rgb),
     .cx(cx),
@@ -139,6 +143,8 @@ spi_gpu spi0
 
     .framebuffer_clk_rgb(framebuffer_clk_rgb), .framebuffer_clk_palette(framebuffer_clk_palette),
     .framebuffer_wren_rgb(framebuffer_wren_rgb), .framebuffer_wren_palette(framebuffer_wren_palette),
+
+    .framebuffer_hblank(framebuffer_hblank), .framebuffer_vblank(framebuffer_vblank),
 
     .test_led_ready(led_ready),
     .test_led_done(led_done),

@@ -12,6 +12,8 @@ module framebuffer
     input logic clk_rgb, clk_palette,
     input logic wren_rgb, wren_palette,
     
+    output logic hblank, vblank,
+
     //PORT B
     input logic clk_pixel,
     output logic [23:0] screen_rgb_out,
@@ -49,7 +51,12 @@ begin
     automatic logic signed [12:0] cy_offset = 13'(cy - 60);
 
     if (cx >= screen_width || cy >= screen_height)
+    begin
         framebuffer_idx <= 0; //h-blank / v-blank
+
+        hblank <= 1;
+        vblank <= 1;
+    end
     else 
     begin
         if (cy_offset >= 0 && cy_offset < 960 && cx_offset < 1280) //y is in framebuffer zone, x is or before framebuffer zone
@@ -59,6 +66,9 @@ begin
         end //else prepare {0;0}
         
         framebuffer_idx <= 17'(next_framebuffer_x + next_framebuffer_y*320);
+
+        hblank <= cx_offset < 0 || cx_offset >= 1280;
+        vblank <= cy_offset < 0 || cy_offset >= 960;
     end
 end
 
@@ -75,8 +85,5 @@ begin
     next_palette <= framebuffer[framebuffer_idx];
     next_rgb <= palette[next_palette];
 end
-
-//always_ff @(negedge clk_pixel)
-//    next_rgb <= palette[next_palette];
 
 endmodule
