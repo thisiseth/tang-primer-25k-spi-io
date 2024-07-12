@@ -5,7 +5,7 @@
 //Part Number: GW5A-LV25MG121NES
 //Device: GW5A-25
 //Device Version: A
-//Created Time: Fri Jun 28 19:30:41 2024
+//Created Time: Thu Jul 11 18:26:35 2024
 
 module gowin_pll_hdmi_1080 (lock, clkout0, clkout1, clkin);
 

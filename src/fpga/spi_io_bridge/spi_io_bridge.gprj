@@ -8,7 +8,7 @@
         <File path="src/top.sv" type="file.verilog" enable="1"/>
         <File path="src/framebuffer.sv" type="file.verilog" enable="1"/>
         <File path="src/gowin/pll_hdmi_1080.v" type="file.verilog" enable="1"/>
-        <File path="src/gowin/pll_hdmi_480.v" type="file.verilog" enable="1"/>
+        <File path="src/gowin/pll_usb.v" type="file.verilog" enable="1"/>
         <File path="src/hdmi/audio_clock_regeneration_packet.sv" type="file.verilog" enable="1"/>
         <File path="src/hdmi/audio_info_frame.sv" type="file.verilog" enable="1"/>
         <File path="src/hdmi/audio_sample_packet.sv" type="file.verilog" enable="1"/>
@@ -20,6 +20,11 @@
         <File path="src/hdmi/source_product_description_info_frame.sv" type="file.verilog" enable="1"/>
         <File path="src/hdmi/tmds_channel.sv" type="file.verilog" enable="1"/>
         <File path="src/spi_gpu.sv" type="file.verilog" enable="1"/>
+        <File path="src/usb_host/rv32i.v" type="file.verilog" enable="1"/>
+        <File path="src/usb_host/usb11_phy.v" type="file.verilog" enable="1"/>
+        <File path="src/usb_host/usb11_regs.v" type="file.verilog" enable="1"/>
+        <File path="src/usb_host/usb11_sie.v" type="file.verilog" enable="1"/>
+        <File path="src/usb_host/usb_host.v" type="file.verilog" enable="1"/>
         <File path="src/pins.cst" type="file.cst" enable="1"/>
         <File path="src/timing.sdc" type="file.sdc" enable="1"/>
     </FileList>
