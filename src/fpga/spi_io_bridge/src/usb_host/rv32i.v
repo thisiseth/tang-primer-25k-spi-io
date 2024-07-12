@@ -432,7 +432,7 @@ module m_lm_mc
         input wire clkb,          //so i tried my best to make it infer and here it is: 
                                   //bypass read port A at 1x clock
         input wire [31:0] dinb,   //and bypass read and write-through write port B at 45 deg delayed 2x clock, first read, then write
-                                  //all of this just to be able to use $readmemh
+                                  //all of this just to be able to use $readmemh, instead of IP core creation tool
         output wire [31:0] douta,
         output wire [31:0] doutb,
 

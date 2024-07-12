@@ -11,3 +11,5 @@
 **/impl/pnr/*
 
 !**/impl/**/*.cfg
+
+**/build/
