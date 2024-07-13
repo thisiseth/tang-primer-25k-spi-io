@@ -27,5 +27,6 @@
         <File path="src/usb_host/usb_host.v" type="file.verilog" enable="1"/>
         <File path="src/pins.cst" type="file.cst" enable="1"/>
         <File path="src/timing.sdc" type="file.sdc" enable="1"/>
+        <File path="src/usb_host/ucmem/mem.hex" type="file.other" enable="1"/>
     </FileList>
 </Project>

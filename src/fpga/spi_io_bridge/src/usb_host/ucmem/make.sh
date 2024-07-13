@@ -2,13 +2,13 @@
 
 cd build
 
-./riscv-kencc/host/bin/ia ../entry.s
+./riscv-kencc/host/bin/ia ../_entry.s
 ./riscv-kencc/host/bin/ic ../task.c
 ./riscv-kencc/host/bin/ic ../req.c
 ./riscv-kencc/host/bin/ic ../enum.c
 ./riscv-kencc/host/bin/ic ../hub.c
 ./riscv-kencc/host/bin/ic ../hid.c
-./riscv-kencc/host/bin/ic ../_prn.c
+./riscv-kencc/host/bin/ic ../prnt.c
 ./riscv-kencc/host/bin/ic ../lib.c
 ./riscv-kencc/host/bin/il -H1 -l -T0x10000000 -c -t -a *.i >test.txt
 ./riscv-kencc/host/bin/il -H1 -l -T0x10000000 -c -t    *.i
