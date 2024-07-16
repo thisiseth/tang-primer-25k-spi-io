@@ -30,13 +30,16 @@ module spi_gpu
     //spi stuff
     //
 
+    localparam int WRITE_DUMMY_CYCLES = 4;
+
     typedef enum 
     { //funny values for 4-led presentation
-        IDLE = 15,      //initial state
-        COMMAND = 1,    //reading 8 bits of command code
-        READ = 2,       //'receive'
-        WRITE = 4,      //'transmit'
-        DONE = 8        //set on last falling SCLK edge, waiting for CS to go high
+        IDLE = 0,       //initial state
+        COMMAND = 1,     //reading 8 bits of command code
+        READ = 2,        //'receive'
+        WRITE_DUMMY = 4, //transmit dummy
+        WRITE = 8,       //'transmit'
+        DONE = 15        //set on last falling SCLK edge, waiting for CS to go high
     } spi_state;
 
     spi_state current_state, next_state;
@@ -46,8 +49,8 @@ module spi_gpu
     logic [3:0] data_in;
     logic [3:0] data_out;
 
-    assign {mosi_d0, miso_d1, d2, d3} = current_state == WRITE ? data_out : 4'bZZZZ;
-    assign data_in = {mosi_d0, miso_d1, d2, d3};
+    assign {d3, d2, miso_d1, mosi_d0} = current_state == WRITE ? data_out : 4'bZZZZ;
+    assign data_in = {d3, d2, miso_d1, mosi_d0};
 
     //internal registers
     //
@@ -56,7 +59,7 @@ module spi_gpu
 
     logic [7:0] status_register0;
 
-    assign status_register0 = {5'b0, framebuffer_hblank, framebuffer_vblank, output_enabled};
+    assign status_register0 = {5'b10110, framebuffer_hblank, framebuffer_vblank, output_enabled};
 
     int counter;
     logic [3:0] tmp1, tmp2, tmp3;
@@ -324,8 +327,9 @@ module spi_gpu
         else
             unique case (current_state)
                 IDLE : next_state = COMMAND;
-                COMMAND : next_state = command_has_read(command_enum) ? READ : (command_has_write(command_enum) ? WRITE : DONE);
-                READ : next_state = read_done ? (command_has_write(command_enum) ? WRITE : DONE) : READ;
+                COMMAND : next_state = command_has_read(command_enum) ? READ : (command_has_write(command_enum) ? WRITE_DUMMY : DONE);
+                READ : next_state = read_done ? (command_has_write(command_enum) ? WRITE_DUMMY : DONE) : READ;
+                WRITE_DUMMY : next_state = counter >= (WRITE_DUMMY_CYCLES-1) ? WRITE : WRITE_DUMMY; //4 dummy cycles
                 WRITE : next_state = write_done ? DONE : WRITE;
                 DONE : next_state = DONE;
                 default: next_state = IDLE;
@@ -334,12 +338,12 @@ module spi_gpu
 
     assign test_led_ready = command_defined(command_enum);
     assign test_led_done = output_enabled;
-    assign test_led[3:0] = counter[3:0];
-    assign test_led[7:4] = current_state[3:0];
+    //assign test_led[3:0] = counter[3:0];
+    //assign test_led[7:4] = current_state[3:0];
 
     //assign test_led_ready = in_clk;
     //assign test_led_done = out_clk;
-    //assign test_led = command_bits;
+    assign test_led = command_bits;
     //assign test_led[3:0] = {3'b000, data_out_enable};
 
     //assign test_led_done = framebuffer_clk_rgb;

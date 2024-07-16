@@ -163,9 +163,9 @@ module top
         .framebuffer_hblank(framebuffer_hblank), .framebuffer_vblank(framebuffer_vblank),
 
         .test_led_ready(led_ready),
-        .test_led_done(led_done)
+        .test_led_done(led_done),
 
-        //.test_led(test_led)
+        .test_led(test_led)
     );
 
     usb_host usb_host 
@@ -178,9 +178,9 @@ module top
         .usb_dn(usb_host_dn),
 
         .cpu_uart_tx(usb_cpu_uart_tx),
-        .cpu_uart_rx(usb_cpu_uart_rx),
+        .cpu_uart_rx(usb_cpu_uart_rx)
 
-        ._debug_led(test_led)
+        //._debug_led(test_led)
     );
 
 endmodule

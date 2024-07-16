@@ -66,18 +66,27 @@ TASK *clr_task(TASK *task)
     return task;
 }
 
+uint8_t donotspam = 0;
+
 // Manage root port connection status
 //
-static void check_root(TASK *task)
+static void check_root(TASK *task)   
 {
     // device disconnected?
     if ((usbh[REG_STAT] & STAT_DETECT) == 0) {
-        printf("device disconnected, task addr = %d\n", task->addr);
+        if (!donotspam)
+        {
+            printf("device disconnected, task addr = %d\n", task->addr);
+            donotspam = 1;
+        }
+
         clr_task(task);
         root_config(1, 0);
         task->prt_flags = ROOT_PORT|PRT_POWER;
         return;
     }
+
+    donotspam = 0;
     
     // connected and nothing to do?
     if (task->prt_flags & (PRT_STALL|PRT_ENABLED)) return;
