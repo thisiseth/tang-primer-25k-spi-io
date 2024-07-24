@@ -98,7 +98,14 @@ module top
     //            8'(cy % 255),
     //            8'((cx + cy) % 255)};
 
-    hdmi #(.VIDEO_ID_CODE(16), .DVI_OUTPUT(1)) hdmi
+    hdmi 
+    #(
+        .VIDEO_ID_CODE(16), 
+        .DVI_OUTPUT(0), 
+        .VIDEO_REFRESH_RATE(60.0), 
+        .AUDIO_RATE(48000)
+    ) 
+    hdmi
     (
         .clk_pixel_x5(clk_pixel_x5),
         .clk_pixel(clk_pixel),

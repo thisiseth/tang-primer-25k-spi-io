@@ -54,8 +54,8 @@ module framebuffer
         begin
             framebuffer_idx <= 0; //h-blank / v-blank
 
-            hblank <= 1;
-            vblank <= 1;
+            hblank <= cx >= screen_width;
+            vblank <= cy >= screen_height;
         end
         else 
         begin

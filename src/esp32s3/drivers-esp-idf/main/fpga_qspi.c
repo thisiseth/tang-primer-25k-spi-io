@@ -6,9 +6,9 @@ static const char TAG[] = "fpga_qspi";
 
 #define SPI_DEVICE SPI2_HOST
 #define SPI_FREQ SPI_MASTER_FREQ_80M
-#define SPI_MAX_TRANS_BYTES 4094*4
+#define SPI_MAX_TRANS_BYTES 4092*4
 
-#define SPI_INPUT_DELAY_NS 15
+#define SPI_INPUT_DELAY_NS 18
 
 #define FPGA_QSPI_COMMAND_BITS 8
 #define FPGA_QSPI_READ_DUMMY_CYCLES 2
@@ -83,14 +83,8 @@ cleanup:
     return false;
 }
 
-static bool fpga_qspi_send(spi_device_handle_t device, uint8_t command, uint64_t address, int addressLengthBits, uint8_t *sendBuf, int sendCount, uint8_t *receiveBuf, int receiveCount)
+static inline IRAM_ATTR bool fpga_qspi_send(spi_device_handle_t device, uint8_t command, uint64_t address, int addressLengthBits, uint8_t *sendBuf, int sendCount, uint8_t *receiveBuf, int receiveCount)
 {
-    if (sendCount <= 0 && receiveCount <= 0)
-    {
-        ESP_LOGE(TAG, "send: tx&rx counts are <= 0");
-        return false;
-    }
-
     esp_err_t err = ~ESP_OK;
     spi_transaction_ext_t *lastTrans = NULL;
 
@@ -138,10 +132,9 @@ static bool fpga_qspi_send(spi_device_handle_t device, uint8_t command, uint64_t
         .dummy_bits = FPGA_QSPI_READ_DUMMY_CYCLES //its cycles, not 'bits'
     };
 
-    if (sendCount > 0)
+    if (sendCount > 0 || (sendCount == 0 && receiveCount == 0))
     {
         err = spi_device_queue_trans(device, &transTx.base, 0);
-        printf("q tx\n");//////////////////////////
 
         if (err != ESP_OK)
             goto cleanup;
@@ -152,7 +145,6 @@ static bool fpga_qspi_send(spi_device_handle_t device, uint8_t command, uint64_t
     if (receiveCount > 0)
     {
         err = spi_device_queue_trans(device, &transRx.base, 0);
-        printf("q rx\n");/////////////////////////////
         
         if (err != ESP_OK)
             goto cleanup;
@@ -164,8 +156,6 @@ static bool fpga_qspi_send(spi_device_handle_t device, uint8_t command, uint64_t
 
     while (completedTrans != &lastTrans->base)
     {
-        printf("trans compl\n");///////////////////////
-
         err = spi_device_get_trans_result(device, &completedTrans, portMAX_DELAY);
 
         if (err != ESP_OK)
@@ -178,12 +168,12 @@ cleanup:
     return err == ESP_OK;
 }
 
-bool fpga_qspi_send_gpu(fpga_qspi_t *qspi, uint8_t command, uint64_t address, int addressLengthBits, uint8_t *sendBuf, int sendCount, uint8_t *receiveBuf, int receiveCount)
+bool IRAM_ATTR fpga_qspi_send_gpu(fpga_qspi_t *qspi, uint8_t command, uint64_t address, int addressLengthBits, uint8_t *sendBuf, int sendCount, uint8_t *receiveBuf, int receiveCount)
 {
     return fpga_qspi_send(qspi->spi_gpu, command, address, addressLengthBits, sendBuf, sendCount, receiveBuf, receiveCount);
 }
 
-bool fpga_qspi_send_io(fpga_qspi_t *qspi, uint8_t command, uint64_t address, int addressLengthBits, uint8_t *sendBuf, int sendCount, uint8_t *receiveBuf, int receiveCount)
+bool IRAM_ATTR fpga_qspi_send_io(fpga_qspi_t *qspi, uint8_t command, uint64_t address, int addressLengthBits, uint8_t *sendBuf, int sendCount, uint8_t *receiveBuf, int receiveCount)
 {
     return fpga_qspi_send(qspi->spi_io, command, address, addressLengthBits, sendBuf, sendCount, receiveBuf, receiveCount);
 }

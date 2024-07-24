@@ -1,5 +1,9 @@
+#pragma once
+
 #include <stdint.h>
 #include "driver/spi_master.h"
+
+#define SPI_MAX_TRANS_BYTES 4092*4
 
 typedef struct 
 {

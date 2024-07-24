@@ -30,7 +30,7 @@ module spi_gpu
     //spi stuff
     //
 
-    localparam int WRITE_DUMMY_CYCLES = 4;
+    localparam int WRITE_DUMMY_CYCLES = 2;
 
     typedef enum 
     { //funny values for 4-led presentation
@@ -171,7 +171,9 @@ module spi_gpu
                                 framebuffer_rgb_in <= {framebuffer_rgb_in[3:0], data_in};
 
                                 if ((counter > 6) && (counter % 2) == 0) //addr increment at counter 8, 10 etc
-                                    framebuffer_rgb_addr_wr <= framebuffer_rgb_addr_wr + 1;
+                                    framebuffer_rgb_addr_wr <= framebuffer_rgb_addr_wr < 76800 //wraparound
+                                        ? framebuffer_rgb_addr_wr + 1 
+                                        : 0;
                             end
                         end
                     endcase

@@ -1,3 +1,6 @@
+# vscode
+.vscode
+
 *.user
 
 # crap to reinclude gwsynthesis & pnr to unignore some stuff back
