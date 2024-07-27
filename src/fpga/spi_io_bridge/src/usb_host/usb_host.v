@@ -11,9 +11,7 @@ module usb_host
     inout  wire usb_dn,      // D-
    
     output  wire cpu_uart_tx,
-    input wire cpu_uart_rx,
-
-    output wire [7:0] _debug_led
+    input wire cpu_uart_rx
 );
 
     reg [1:0]        rstn_sync = 0;
@@ -39,9 +37,7 @@ module usb_host
         .w_mic_wdata(cpu_do),
         .w_mic_req(cpu_md),
         .w_mic_ctrl(),
-        .w_stall(1'b0),
-
-        ._debug_led(_debug_led)
+        .w_stall(1'b0)
     );
 
     assign cpu_di = sie_sel  ? sie_di  :

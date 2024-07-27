@@ -186,9 +186,7 @@ module RV32I (
     output wire [31:0]  w_mic_wdata,  //     data out,
     output wire         w_mic_mmuwe,  //     wr
     output wire  [2:0]  w_mic_ctrl,   // info size: 'funct3' field, to select b/h/w
-    output wire  [1:0]  w_mic_req,     // info TLB: type of access: 2 = IF, 1 = WR, 0 = RD, 3 = NONE
-
-    output wire [7:0] _debug_led
+    output wire  [1:0]  w_mic_req     // info TLB: type of access: 2 = IF, 1 = WR, 0 = RD, 3 = NONE
   );
 
     reg  [31:0] r_pc     = 0; // program counter (PC)
@@ -205,10 +203,6 @@ module RV32I (
 
     reg  [31:0] r_dram_data = 0;
     
-/////////////////
-    assign _debug_led = r_pc[7:0];
-/////////////////
-
     always @(posedge CLK) begin
         r_state <= (!RST_X) ? 0 : (w_stall) ? r_state : (r_state==`MC_MA) ? `MC_IF : r_state+1;
     end

@@ -5,9 +5,10 @@
     <Version>5</Version>
     <Device name="GW5A-25A" pn="GW5A-LV25MG121NES">gw5a25a-000</Device>
     <FileList>
-        <File path="src/top.sv" type="file.verilog" enable="1"/>
         <File path="src/framebuffer.sv" type="file.verilog" enable="1"/>
+        <File path="src/gowin/fifo_audio.v" type="file.verilog" enable="1"/>
         <File path="src/gowin/pll_hdmi_1080.v" type="file.verilog" enable="1"/>
+        <File path="src/gowin/pll_hdmi_720.v" type="file.verilog" enable="1"/>
         <File path="src/gowin/pll_usb.v" type="file.verilog" enable="1"/>
         <File path="src/hdmi/audio_clock_regeneration_packet.sv" type="file.verilog" enable="1"/>
         <File path="src/hdmi/audio_info_frame.sv" type="file.verilog" enable="1"/>
@@ -20,6 +21,8 @@
         <File path="src/hdmi/source_product_description_info_frame.sv" type="file.verilog" enable="1"/>
         <File path="src/hdmi/tmds_channel.sv" type="file.verilog" enable="1"/>
         <File path="src/spi_gpu.sv" type="file.verilog" enable="1"/>
+        <File path="src/spi_io.sv" type="file.verilog" enable="1"/>
+        <File path="src/top.sv" type="file.verilog" enable="1"/>
         <File path="src/usb_host/rv32i.v" type="file.verilog" enable="1"/>
         <File path="src/usb_host/usb11_phy.v" type="file.verilog" enable="1"/>
         <File path="src/usb_host/usb11_regs.v" type="file.verilog" enable="1"/>

@@ -36,6 +36,12 @@ module top
     output logic [7:0] test_led
 );
 
+    assign hdmi_tx_ddc_sda = 1;
+    assign hdmi_tx_ddc_scl = 1;
+    assign hdmi_tx_cec = 1;
+
+    // clocks
+
     logic pll_hdmi_lock, pll_usb_lock;
 
     logic clk_pixel;
@@ -43,15 +49,9 @@ module top
     logic clk_usb_48m;
     logic clk_usb_cpu_bram_96m;
 
-    wire clk_audio;
-    wire reset;
+    logic clk_audio;
 
-    assign clk_audio = 0;
     assign reset = 0;
-
-    assign hdmi_tx_ddc_sda = 1;
-    assign hdmi_tx_ddc_scl = 1;
-    assign hdmi_tx_cec = 1;
 
     gowin_pll_hdmi_1080 pll_hdmi (
         .lock(pll_hdmi_lock), 
@@ -67,12 +67,39 @@ module top
         .clkin(clk_50m) 
     );
 
-    logic [15:0] audio_sample_word [1:0];
-
-    assign audio_sample_word = '{16'd0, 16'd0};
+    // hdmi
 
     logic [23:0] rgb;
     logic [11:0] cx, cy, screen_start_x, screen_start_y, frame_width, frame_height, screen_width, screen_height;
+
+    logic [15:0] audio_sample_word [1:0];
+
+    hdmi 
+    #(
+        .VIDEO_ID_CODE(16), //4: 720p60hz, 16: 1080p60hz
+        .DVI_OUTPUT(0), //true HDMI with audio
+        .VIDEO_REFRESH_RATE(60.0), 
+        .AUDIO_RATE(48000)
+    )
+    hdmi
+    (
+        .clk_pixel_x5(clk_pixel_x5),
+        .clk_pixel(clk_pixel),
+        .clk_audio(clk_audio),
+        .reset(~pll_hdmi_lock),
+        .rgb(rgb),
+        .audio_sample_word(audio_sample_word),
+        .tmds(hdmi_tx_tmds),
+        .tmds_clock(hdmi_tx_tmds_clk),
+        .cx(cx),
+        .cy(cy),
+        .frame_width(frame_width),
+        .frame_height(frame_height),
+        .screen_width(screen_width),
+        .screen_height(screen_height)
+    );
+
+    // framebuffer
 
     logic [7:0] framebuffer_rgb_in;
     logic [7:0] framebuffer_rgb_out;
@@ -86,42 +113,6 @@ module top
     logic framebuffer_wren_rgb, framebuffer_wren_palette;
 
     logic framebuffer_hblank, framebuffer_vblank;
-
-    // Border test (left = red, top = green, right = blue, bottom = blue, fill = black)
-    //always @(posedge clk_pixel)
-    //  rgb <= {cx == 0 ? ~8'd0 : 8'd0, 
-    //          cy == 0 ? ~8'd0 : 8'd0, 
-    //          cx == screen_width - 1'd1 || cy == screen_height - 1'd1 ? ~8'd0 : 8'd0};
-
-    //always @(posedge clk_pixel)
-    //    rgb <= {8'(cx % 255),
-    //            8'(cy % 255),
-    //            8'((cx + cy) % 255)};
-
-    hdmi 
-    #(
-        .VIDEO_ID_CODE(16), 
-        .DVI_OUTPUT(0), 
-        .VIDEO_REFRESH_RATE(60.0), 
-        .AUDIO_RATE(48000)
-    ) 
-    hdmi
-    (
-        .clk_pixel_x5(clk_pixel_x5),
-        .clk_pixel(clk_pixel),
-        .clk_audio(clk_audio),
-        .reset(reset),
-        .rgb(rgb),
-        .audio_sample_word(audio_sample_word),
-        .tmds(hdmi_tx_tmds),
-        .tmds_clock(hdmi_tx_tmds_clk),
-        .cx(cx),
-        .cy(cy),
-        .frame_width(frame_width),
-        .frame_height(frame_height),
-        .screen_width(screen_width),
-        .screen_height(screen_height)
-    );
 
     framebuffer framebuffer
     (
@@ -144,7 +135,84 @@ module top
         .cy(cy),
         .screen_width(screen_width),
         .screen_height(screen_height)
+    );	
+
+    // audio
+
+    logic [31:0] audio_fifo_in, audio_fifo_out;
+    logic [10:0] audio_fifo_wnum;
+    logic audio_fifo_empty, audio_fifo_full, audio_fifo_almost_empty, audio_fifo_almost_full;
+
+    logic audio_fifo_wr_clk;
+
+    gowin_fifo_audio audio_fifo
+    (
+		.Data(audio_fifo_in),
+		.WrClk(audio_fifo_wr_clk),
+		.RdClk(clk_audio), 
+		.WrEn(1),
+		.RdEn(1),
+		.Wnum(audio_fifo_wnum),
+		.Almost_Empty(audio_fifo_almost_empty),
+		.Almost_Full(audio_fifo_almost_full), 
+		.Q(audio_fifo_out),
+		.Empty(audio_fifo_empty), 
+		.Full(audio_fifo_full)
+	);
+
+    logic [10:0] audio_div_counter;
+
+    //localparam int PIXEL_TO_AUDIO_DIV = 1562; //720p: 75mhz to ~48khz
+    localparam int PIXEL_TO_AUDIO_DIV = 3125; //1080p: 150mhz to 48khz
+    
+    always_ff @(posedge clk_pixel, negedge pll_hdmi_lock)
+    begin
+        if (!pll_hdmi_lock)
+        begin
+            audio_div_counter <= 0;
+            clk_audio <= 0;
+        end
+        else
+        begin
+            audio_div_counter <= audio_div_counter >= (PIXEL_TO_AUDIO_DIV-1) ? 0 : audio_div_counter + 1;
+            clk_audio <= audio_div_counter >= (PIXEL_TO_AUDIO_DIV/2);
+        end
+    end
+
+    always_ff @(posedge clk_audio)
+    begin
+        audio_sample_word <= '{audio_fifo_out[31:16], audio_fifo_out[15:0]}; //if fifo is empty last sample should be output
+    end
+
+////
+    assign audio_fifo_wr_clk = clk_audio;
+
+    logic [10:0] audio_saw;
+
+    always_ff @(posedge clk_audio)
+    begin
+        //audio_fifo_in <= {16'(button_s1 ? audio_saw : 0), 16'(button_s2 ? audio_saw : 0)};
+        audio_fifo_in <= {16'(audio_saw), 16'(audio_saw)};
+        audio_saw <= audio_saw + 1;
+    end
+////
+
+    // usb
+
+    usb_host usb_host 
+    (
+        .clk_48m(clk_usb_48m),
+        .clk_cpu_bram_96m(clk_usb_cpu_bram_96m),
+        .reset(~pll_usb_lock),
+
+        .usb_dp(usb_host_dp),
+        .usb_dn(usb_host_dn),
+
+        .cpu_uart_tx(usb_cpu_uart_tx),
+        .cpu_uart_rx(usb_cpu_uart_rx)
     );
+
+    // spi
 
     spi_gpu spi0
     (   
@@ -175,19 +243,20 @@ module top
         .test_led(test_led)
     );
 
-    usb_host usb_host 
-    (
-        .clk_48m(clk_usb_48m),
-        .clk_cpu_bram_96m(clk_usb_cpu_bram_96m),
-        .reset(~pll_usb_lock),
+    spi_io spi1
+    (   
+        .reset(1'b0),
+        .cs(spi_cs1),
+        .sclk(spi_sclk),
+        .mosi_d0(spi_mosi_d0),
+        .miso_d1(spi_miso_d1),
+        .d2(spi_d2),
+        .d3(spi_d3)
 
-        .usb_dp(usb_host_dp),
-        .usb_dn(usb_host_dn),
+        //.test_led_ready(led_ready),
+        //.test_led_done(led_done),
 
-        .cpu_uart_tx(usb_cpu_uart_tx),
-        .cpu_uart_rx(usb_cpu_uart_rx)
-
-        //._debug_led(test_led)
+        //.test_led(test_led)
     );
 
 endmodule

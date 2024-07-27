@@ -16,3 +16,7 @@
 !**/impl/**/*.cfg
 
 **/build/
+
+**/temp/
+
+*.vo
