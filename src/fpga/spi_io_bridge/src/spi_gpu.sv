@@ -23,6 +23,11 @@ module spi_gpu
 
     input logic framebuffer_hblank, framebuffer_vblank,
 
+    output logic audio_fifo_wr_clk, audio_fifo_wren,
+    output logic [31:0] audio_fifo_in,
+    input logic [10:0] audio_fifo_wnum,
+    input logic audio_fifo_full, audio_fifo_almost_full,
+
     output logic test_led_ready, test_led_done,
     output logic [7:0] test_led
 );
@@ -65,6 +70,7 @@ module spi_gpu
     logic [3:0] tmp1, tmp2, tmp3;
     logic [7:0] tmp4, tmp5, tmp6;
     logic [23:0] tmp7, tmp8, tmp9;
+    logic [31:0] tmp10, tmp11, tmp12;
 
     //commands
     //
@@ -77,9 +83,11 @@ module spi_gpu
         COMMAND_FRAMEBUFFER_CONTINUOUS_READ     = 8'b11000010, //read+write, read 3 bytes of first pixel idx, then continuously write pixel data in 1 byte blocks until master stops the transaction
         COMMAND_FRAMEBUFFER_SET_PALETTE         = 8'b10000011, //read phase only, 256*3 bytes of palette starting from [0]
         COMMAND_FRAMEBUFFER_GET_PALETTE         = 8'b01000011, //write phase only, 256*3 bytes of palette starting from [0]
-        COMMAND_READ_STATUS0                    = 8'b01000000,
+        COMMAND_READ_STATUS0                    = 8'b01000000, //write 1 byte of status register 0
         COMMAND_DISABLE_OUTPUT                  = 8'b00000000,
-        COMMAND_ENABLE_OUTPUT                   = 8'b00000001    
+        COMMAND_ENABLE_OUTPUT                   = 8'b00000001,
+        COMMAND_AUDIO_BUFFER_READ_STATUS        = 8'b01010000, //write only, 4 bits of flags + 12 bits of number of samples in buffer = 2 bytes
+        COMMAND_AUDIO_BUFFER_WRITE              = 8'b11010001  //read+write, read 1 byte (1-256) of how many samples will be written, then read 32bits*number of samples, then write status 2 bytes
     } command_code;
 
     logic [7:0] command_bits;
@@ -122,8 +130,14 @@ module spi_gpu
             framebuffer_clk_rgb_pulse_1 <= 0;
             framebuffer_clk_palette_pulse_1 <= 0;
 
+            audio_fifo_wren <= 0;
+            audio_fifo_wr_clk <= 0;
+            audio_fifo_in <= 0;
+
             tmp7 <= 0;
             tmp2 <= 0;
+            tmp4 <= 0;
+            tmp10 <= 0;
         end
         else if (!cs)
         begin
@@ -176,6 +190,46 @@ module spi_gpu
                                         : 0;
                             end
                         end
+                        COMMAND_AUDIO_BUFFER_WRITE : 
+                        begin
+                            read_done <= counter > 1 && counter >= ((tmp4 == 0 ? 256 : tmp4)*8 - 1);
+
+                            if (counter <= 1)
+                                tmp4 <= {tmp4[3:0], data_in};
+                            else 
+                            begin
+                                tmp10 <= {tmp10[27:0], data_in};
+
+                                audio_fifo_wren <= 1;
+
+                                if ((counter-2)%8 == 7)
+                                begin
+                                    audio_fifo_in <= {tmp10[27:0], data_in};
+                                    audio_fifo_wr_clk <= 1;
+
+                                    if (audio_fifo_almost_full)
+                                        tmp7[15] <= 1;
+                                    if (audio_fifo_full)
+                                        tmp7[14] <= 1;
+
+                                                  //write response 16 bits: almost_full_occured, <- sticky
+                                                  //                        full_occured,        <- sticky
+                                                  //                        current_almost_full, 
+                                                  //                        current_full, 
+                                                  //                        12 bits of current wnum
+                                    tmp7[13:0] <= {audio_fifo_almost_full, audio_fifo_full, 1'b0, audio_fifo_wnum};
+                                end
+                                
+                                if ((counter-2)%8 == 3)
+                                    audio_fifo_wr_clk <= 0;
+                            end
+                        end
+                    endcase
+                end
+                WRITE_DUMMY :      
+                begin
+                    unique0 case (command_enum)
+                        COMMAND_AUDIO_BUFFER_READ_STATUS : audio_fifo_wr_clk <= 1;
                     endcase
                 end
                 WRITE : 
@@ -183,6 +237,7 @@ module spi_gpu
                     unique0 case (command_enum)
                         COMMAND_READ_STATUS0 : write_done <= counter > 0;
                         COMMAND_FRAMEBUFFER_GET_PALETTE : write_done <= (counter+1) >= 1536;
+                        COMMAND_AUDIO_BUFFER_READ_STATUS, COMMAND_AUDIO_BUFFER_WRITE : write_done <= counter >= 3;
                     endcase
                 end
                 DONE : ;
@@ -209,6 +264,7 @@ module spi_gpu
             framebuffer_clk_palette_pulse_2 <= 0;
 
             tmp1 <= 0;
+            tmp8 <= 0;
         end
         else if (!cs)
         begin
@@ -260,6 +316,7 @@ module spi_gpu
                             if ((counter % 6) == 1)
                                 framebuffer_clk_palette_pulse_2 <= 1;
                         end
+                        COMMAND_AUDIO_BUFFER_READ_STATUS, COMMAND_AUDIO_BUFFER_WRITE: {data_out, tmp8[15:4]} <= tmp8[15:0];
                     endcase
                 end
                 DONE : ;
@@ -281,6 +338,8 @@ module spi_gpu
                         unique0 case (command_enum)
                             COMMAND_READ_STATUS0 : {data_out, tmp1} <= status_register0;
                             COMMAND_FRAMEBUFFER_GET_PALETTE : {data_out, tmp8[23:4]} <= framebuffer_palette_out;
+                            COMMAND_AUDIO_BUFFER_READ_STATUS : {data_out, tmp8[15:4]} <= {2'b0, audio_fifo_almost_full, audio_fifo_full, 1'b0, audio_fifo_wnum};
+                            COMMAND_AUDIO_BUFFER_WRITE : {data_out, tmp8[15:4]} <= tmp7[15:0];
                         endcase
                     end
                     DONE :

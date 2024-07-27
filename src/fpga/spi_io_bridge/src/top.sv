@@ -53,7 +53,7 @@ module top
 
     assign reset = 0;
 
-    gowin_pll_hdmi_1080 pll_hdmi (
+    gowin_pll_hdmi_720 pll_hdmi (
         .lock(pll_hdmi_lock), 
         .clkout0(clk_pixel),
         .clkout1(clk_pixel_x5),
@@ -76,7 +76,7 @@ module top
 
     hdmi 
     #(
-        .VIDEO_ID_CODE(16), //4: 720p60hz, 16: 1080p60hz
+        .VIDEO_ID_CODE(4), //4: 720p60hz, 16: 1080p60hz
         .DVI_OUTPUT(0), //true HDMI with audio
         .VIDEO_REFRESH_RATE(60.0), 
         .AUDIO_RATE(48000)
@@ -139,19 +139,19 @@ module top
 
     // audio
 
+    logic audio_fifo_wr_clk, audio_fifo_wren;
+
     logic [31:0] audio_fifo_in, audio_fifo_out;
     logic [10:0] audio_fifo_wnum;
     logic audio_fifo_empty, audio_fifo_full, audio_fifo_almost_empty, audio_fifo_almost_full;
-
-    logic audio_fifo_wr_clk;
 
     gowin_fifo_audio audio_fifo
     (
 		.Data(audio_fifo_in),
 		.WrClk(audio_fifo_wr_clk),
 		.RdClk(clk_audio), 
-		.WrEn(1),
-		.RdEn(1),
+		.WrEn(audio_fifo_wren),
+		.RdEn(1'b1),
 		.Wnum(audio_fifo_wnum),
 		.Almost_Empty(audio_fifo_almost_empty),
 		.Almost_Full(audio_fifo_almost_full), 
@@ -160,10 +160,10 @@ module top
 		.Full(audio_fifo_full)
 	);
 
-    logic [10:0] audio_div_counter;
+    logic [11:0] audio_div_counter;
 
-    //localparam int PIXEL_TO_AUDIO_DIV = 1562; //720p: 75mhz to ~48khz
-    localparam int PIXEL_TO_AUDIO_DIV = 3125; //1080p: 150mhz to 48khz
+    localparam int PIXEL_TO_AUDIO_DIV = 1562; //720p: 75mhz to ~48khz
+    //localparam int PIXEL_TO_AUDIO_DIV = 3125; //1080p: 150mhz to 48khz
     
     always_ff @(posedge clk_pixel, negedge pll_hdmi_lock)
     begin
@@ -184,18 +184,19 @@ module top
         audio_sample_word <= '{audio_fifo_out[31:16], audio_fifo_out[15:0]}; //if fifo is empty last sample should be output
     end
 
-////
+//////////
     assign audio_fifo_wr_clk = clk_audio;
+    assign audio_fifo_wren = 1'b1;
 
     logic [10:0] audio_saw;
 
     always_ff @(posedge clk_audio)
     begin
-        //audio_fifo_in <= {16'(button_s1 ? audio_saw : 0), 16'(button_s2 ? audio_saw : 0)};
-        audio_fifo_in <= {16'(audio_saw), 16'(audio_saw)};
+        audio_fifo_in <= {16'(button_s1 ? audio_saw : 0), 16'(button_s2 ? audio_saw : 0)};
+        //audio_fifo_in <= {16'(audio_saw), 16'(audio_saw)};
         audio_saw <= audio_saw + 1;
     end
-////
+//////////
 
     // usb
 
@@ -236,6 +237,12 @@ module top
         .framebuffer_wren_rgb(framebuffer_wren_rgb), .framebuffer_wren_palette(framebuffer_wren_palette),
 
         .framebuffer_hblank(framebuffer_hblank), .framebuffer_vblank(framebuffer_vblank),
+
+        //.audio_fifo_wr_clk(audio_fifo_wr_clk), .audio_fifo_wren(audio_fifo_wren),
+        //.audio_fifo_in(audio_fifo_in),
+        //.audio_fifo_wnum(audio_fifo_wnum),
+        //.audio_fifo_full(audio_fifo_full),
+        //.audio_fifo_almost_full(audio_fifo_almost_full),
 
         .test_led_ready(led_ready),
         .test_led_done(led_done),
