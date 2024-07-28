@@ -60,8 +60,8 @@ module audio_sample_packet
 );
 
 // Left/right channel for stereo audio
-logic [3:0] CHANNEL_LEFT = 4'd1;
-logic [3:0] CHANNEL_RIGHT = 4'd2;
+wire [3:0] CHANNEL_LEFT = 4'd1;
+wire [3:0] CHANNEL_RIGHT = 4'd2;
 
 localparam bit [7:0] CHANNEL_STATUS_LENGTH = 8'd192;
 // See IEC 60958-1 5.1, Table 2

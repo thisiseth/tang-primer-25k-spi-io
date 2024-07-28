@@ -20,7 +20,15 @@ module framebuffer
     input logic [11:0] cx, cy, screen_width, screen_height
 );
 
-    bit [7:0] framebuffer [76800];
+    localparam int FRAME_WIDTH = 320;
+    localparam int FRAME_HEIGHT = 240;
+    localparam int SCALE_X = 3;
+    localparam int SCALE_Y = 3;
+
+    wire [11:0] frame_border_top_bottom = (screen_height - FRAME_HEIGHT*SCALE_Y)/2;
+    wire [11:0] frame_border_left_right = (screen_width - FRAME_WIDTH*SCALE_X)/2;
+
+    bit [7:0] framebuffer [FRAME_WIDTH*FRAME_HEIGHT];
     bit [23:0] palette [256];
 
     always_ff @(posedge clk_rgb)
@@ -41,14 +49,14 @@ module framebuffer
 
     logic [16:0] framebuffer_idx;
 
-    //320*240 mapping from 1920*1080 with integer 4x scaling and letterboxing
+    //320*240 mapping with integer scaling and letterboxing
     always_ff @(posedge clk_pixel)
     begin
         automatic logic [8:0] next_framebuffer_x = 9'b0;
         automatic logic [7:0] next_framebuffer_y = 8'b0;
 
-        automatic logic signed [12:0] cx_offset = 13'(cx - 320 + 3); //compensate latency :/
-        automatic logic signed [12:0] cy_offset = 13'(cy - 60);
+        automatic logic signed [12:0] cx_offset = 13'(cx - frame_border_left_right + 3); //compensate latency :/
+        automatic logic signed [12:0] cy_offset = 13'(cy - frame_border_top_bottom);
 
         if (cx >= screen_width || cy >= screen_height)
         begin
@@ -59,16 +67,16 @@ module framebuffer
         end
         else 
         begin
-            if (cy_offset >= 0 && cy_offset < 960 && cx_offset < 1280) //y is in framebuffer zone, x is or before framebuffer zone
+            if (cy_offset >= 0 && cy_offset < FRAME_HEIGHT*SCALE_Y && cx_offset < FRAME_WIDTH*SCALE_X) //y is in framebuffer zone, x is in or before framebuffer zone
             begin
-                next_framebuffer_x = 9'(cx_offset < 0 ? 0 : 9'(cx_offset / 4));
-                next_framebuffer_y = 8'(cy_offset / 4);
+                next_framebuffer_x = 9'(cx_offset < 0 ? 0 : 9'(cx_offset / SCALE_X));
+                next_framebuffer_y = 8'(cy_offset / SCALE_Y);
             end //else prepare {0;0}
             
-            framebuffer_idx <= 17'(next_framebuffer_x + next_framebuffer_y*320);
+            framebuffer_idx <= 17'(next_framebuffer_x + next_framebuffer_y*FRAME_WIDTH);
 
-            hblank <= cx_offset < 0 || cx_offset >= 1280;
-            vblank <= cy_offset < 0 || cy_offset >= 960;
+            hblank <= cx_offset < 0 || cx_offset >= FRAME_WIDTH*SCALE_X;
+            vblank <= cy_offset < 0 || cy_offset >= FRAME_HEIGHT*SCALE_Y;
         end
     end
 
@@ -77,7 +85,10 @@ module framebuffer
 
     always_ff @(posedge clk_pixel)
     begin
-        if (cx < 320 || cx >= (1280+320) || cy < 60 || cy >= (960+60))
+        if (cx < frame_border_left_right || 
+            cx >= (FRAME_WIDTH*SCALE_X+frame_border_left_right) || 
+            cy < frame_border_top_bottom || 
+            cy >= (FRAME_HEIGHT*SCALE_Y+frame_border_top_bottom))
             screen_rgb_out <= {8'(cx), 8'(cy), 8'(cx+cy)};
         else
             screen_rgb_out <= next_rgb;

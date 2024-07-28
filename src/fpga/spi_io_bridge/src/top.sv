@@ -149,7 +149,7 @@ module top
     (
 		.Data(audio_fifo_in),
 		.WrClk(audio_fifo_wr_clk),
-		.RdClk(clk_audio), 
+		.RdClk(~clk_audio), 
 		.WrEn(audio_fifo_wren),
 		.RdEn(1'b1),
 		.Wnum(audio_fifo_wnum),
@@ -181,6 +181,7 @@ module top
 
     always_ff @(posedge clk_audio)
     begin
+                            //   right                  left
         audio_sample_word <= '{audio_fifo_out[31:16], audio_fifo_out[15:0]}; //if fifo is empty last sample should be output
     end
 
@@ -192,8 +193,9 @@ module top
 
     always_ff @(posedge clk_audio)
     begin
+                       //   right                          left
         audio_fifo_in <= {16'(button_s1 ? audio_saw : 0), 16'(button_s2 ? audio_saw : 0)};
-        //audio_fifo_in <= {16'(audio_saw), 16'(audio_saw)};
+
         audio_saw <= audio_saw + 1;
     end
 //////////
