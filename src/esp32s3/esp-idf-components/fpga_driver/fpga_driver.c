@@ -10,6 +10,12 @@
 
 static const char TAG[] = "fpga_driver";
 
+#ifdef NDEBUG
+#define FPGA_DRIVER_ERROR_CHECK(f) do { bool _ret = (f); (void)sizeof(_ret); } while(0)
+#else
+#define FPGA_DRIVER_ERROR_CHECK(f) do { if (!(f)) ESP_LOGE(TAG, "driver api call returned false: %s", #f); } while(0)
+#endif
+
 #define FPGA_DRIVER_TASK_PRIORITY  15
 #define FPGA_DRIVER_TASK_STACKSIZE 4 * 1024
 #define FPGA_DRIVER_TASK_NAME      "fpga_driver_main"
@@ -19,6 +25,7 @@ static const char TAG[] = "fpga_driver";
 #define FPGA_DRIVER_TASK_TICK_US 1000
 
 static volatile bool init = false;
+static volatile bool fpga_connected = false;
 
 static fpga_qspi_t qspi;
 static gptimer_handle_t driver_timer = NULL;
@@ -76,6 +83,11 @@ bool fpga_driver_init(fpga_driver_config_t *config)
     return init = true;
 }
 
+bool fpga_driver_is_connected(void)
+{
+    return fpga_connected;
+}
+
 static bool IRAM_ATTR driver_timer_tick(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
@@ -93,21 +105,26 @@ static void IRAM_ATTR driver_task_main(void *arg)
 
     /////////////
     gpio_set_direction(35, GPIO_MODE_OUTPUT);
-    gpio_set_direction(37, GPIO_MODE_OUTPUT);
 
     int pink = 0;
-    bool green = false;
     /////////////
 
     for (;;)
     {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
-        /////////////////
-        fpga_api_gpu_read_magic_number(&qspi, &green);
+        if (!fpga_connected)
+        {
+            bool connected = false;
 
+            FPGA_DRIVER_ERROR_CHECK(fpga_api_gpu_read_magic_number(&qspi, &connected));
+
+            fpga_connected = connected;
+            continue;
+        }
+
+        /////////////////
         gpio_set_level(35, pink = !pink);
-        gpio_set_level(37, green);
         /////////////////
     }
 

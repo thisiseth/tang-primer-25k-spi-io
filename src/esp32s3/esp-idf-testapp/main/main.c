@@ -7,10 +7,12 @@
 #include "sdkconfig.h"
 #include "esp_log.h"
 #include "esp_err.h"
+#include "driver/gpio.h"
 
 #include "fpga_qspi.h"
 #include "fpga_api_gpu.h"
 #include "fpga_driver.h"
+#include "pmod_board.h"
 
 #define FPGA_SPI_CS0 41
 #define FPGA_SPI_CS1 39
@@ -63,8 +65,17 @@ void app_main(void)
     if (!fpga_driver_init(&driver_config))
         printf("failed to init driver\n");
 
-    return;
+    gpio_set_direction(PMOD_LED_GREEN, GPIO_MODE_OUTPUT);
 
+    for (;;)
+    {
+        gpio_set_level(PMOD_LED_GREEN, fpga_driver_is_connected());
+        vTaskDelay(1);
+    }
+}
+
+void app_main2(void)
+{
     esp_err_t ret;
 
     printf("123\n");

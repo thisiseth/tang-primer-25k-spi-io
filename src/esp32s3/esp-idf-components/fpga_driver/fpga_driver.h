@@ -15,4 +15,6 @@ typedef struct
 
 bool fpga_driver_init(fpga_driver_config_t *config);
 
+bool fpga_driver_is_connected(void);
+
 
