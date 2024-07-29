@@ -151,8 +151,13 @@ module spi_gpu
                 begin
                     command_bits <= {command_bits[3:0], data_in};
                     framebuffer_clk_palette_pulse_1 <= 1; //preloading palette[0] for COMMAND_FRAMEBUFFER_GET_PALETTE
+                    audio_fifo_wr_clk <= 1; //need two wr clk pulses to clear previous wnum
                 end
-                COMMAND : command_bits <= {command_bits[3:0], data_in};
+                COMMAND : 
+                begin
+                    command_bits <= {command_bits[3:0], data_in};
+                    audio_fifo_wr_clk <= 0;
+                end
                 READ : 
                 begin
                     unique0 case (command_enum)
@@ -192,7 +197,7 @@ module spi_gpu
                         end
                         COMMAND_AUDIO_BUFFER_WRITE : 
                         begin
-                            read_done <= counter > 1 && counter >= ((tmp4 == 0 ? 256 : tmp4)*8 - 1);
+                            read_done <= counter > 1 && counter >= ((tmp4 == 0 ? 256 : tmp4)*8 + 1);
 
                             if (counter <= 1)
                                 tmp4 <= {tmp4[3:0], data_in};
@@ -212,8 +217,8 @@ module spi_gpu
                                     if (audio_fifo_full)
                                         tmp7[14] <= 1;
 
-                                                  //write response 16 bits: almost_full_occured, <- sticky
-                                                  //                        full_occured,        <- sticky
+                                                  //write response 16 bits: almost_full_occurred, <- sticky
+                                                  //                        full_occurred,        <- sticky
                                                   //                        current_almost_full, 
                                                   //                        current_full, 
                                                   //                        12 bits of current wnum
@@ -229,7 +234,7 @@ module spi_gpu
                 WRITE_DUMMY :      
                 begin
                     unique0 case (command_enum)
-                        COMMAND_AUDIO_BUFFER_READ_STATUS : audio_fifo_wr_clk <= 1;
+                        COMMAND_AUDIO_BUFFER_READ_STATUS : audio_fifo_wr_clk <= ~counter;
                     endcase
                 end
                 WRITE : 

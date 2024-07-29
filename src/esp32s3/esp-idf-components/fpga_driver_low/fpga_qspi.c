@@ -168,12 +168,12 @@ cleanup:
     return err == ESP_OK;
 }
 
-bool IRAM_ATTR fpga_qspi_send_gpu(fpga_qspi_t *qspi, uint8_t command, uint64_t address, int addressLengthBits, uint8_t *sendBuf, int sendCount, uint8_t *receiveBuf, int receiveCount)
+IRAM_ATTR bool fpga_qspi_send_gpu(fpga_qspi_t *qspi, uint8_t command, uint64_t address, int addressLengthBits, uint8_t *sendBuf, int sendCount, uint8_t *receiveBuf, int receiveCount)
 {
     return fpga_qspi_send(qspi->spi_gpu, command, address, addressLengthBits, sendBuf, sendCount, receiveBuf, receiveCount);
 }
 
-bool IRAM_ATTR fpga_qspi_send_io(fpga_qspi_t *qspi, uint8_t command, uint64_t address, int addressLengthBits, uint8_t *sendBuf, int sendCount, uint8_t *receiveBuf, int receiveCount)
+IRAM_ATTR bool fpga_qspi_send_io(fpga_qspi_t *qspi, uint8_t command, uint64_t address, int addressLengthBits, uint8_t *sendBuf, int sendCount, uint8_t *receiveBuf, int receiveCount)
 {
     return fpga_qspi_send(qspi->spi_io, command, address, addressLengthBits, sendBuf, sendCount, receiveBuf, receiveCount);
 }

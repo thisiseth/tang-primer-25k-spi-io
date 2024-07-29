@@ -11,7 +11,9 @@ typedef enum
     COMMAND_FRAMEBUFFER_GET_PALETTE         = 0b01000011, //write phase only, 256*3 bytes of palette starting from [0]
     COMMAND_READ_STATUS0                    = 0b01000000,
     COMMAND_DISABLE_OUTPUT                  = 0b00000000,
-    COMMAND_ENABLE_OUTPUT                   = 0b00000001    
+    COMMAND_ENABLE_OUTPUT                   = 0b00000001,    
+    COMMAND_AUDIO_BUFFER_READ_STATUS        = 0b01010000, //write only, 4 bits of flags + 12 bits of number of samples in buffer = 2 bytes
+    COMMAND_AUDIO_BUFFER_WRITE              = 0b11010001  //read+write, read 1 byte (1-256) of how many samples will be written, then read 32bits*number of samples, then write status 2 bytes
 } FPGA_GPU_COMMAND;
 
 bool IRAM_ATTR fpga_api_gpu_read_status0(fpga_qspi_t *qspi, uint8_t *result)
@@ -65,6 +67,34 @@ bool IRAM_ATTR fpga_api_gpu_framebuffer_write(fpga_qspi_t *qspi, uint32_t startI
 bool IRAM_ATTR fpga_api_gpu_framebuffer_read(fpga_qspi_t *qspi, uint32_t startIdx, uint8_t *pixels, int pixelCount)
 {
     return false;
+}
+
+bool IRAM_ATTR fpga_api_gpu_audio_buffer_read_status(fpga_qspi_t *qspi, uint16_t *status)
+{
+    WORD_ALIGNED_ATTR uint8_t buf[4] = { 0 };        
+    
+    if (!fpga_qspi_send_gpu(qspi, COMMAND_AUDIO_BUFFER_READ_STATUS, 0, 0, NULL, 0, buf, 2))
+            return false;
+
+    *status = buf[0] << 8 | buf[1];
+    return true;
+}
+
+bool IRAM_ATTR fpga_api_gpu_audio_buffer_write(fpga_qspi_t *qspi, uint8_t *samples, int sampleCount, uint16_t *status)
+{
+    if (sampleCount <= 0 || sampleCount > 256)
+    {
+        ESP_LOGE(TAG, "sampleCount must be 0 < count <= 256");
+        return false;
+    }
+
+    WORD_ALIGNED_ATTR uint8_t buf[4] = { 0 };
+
+    if (!fpga_qspi_send_gpu(qspi, COMMAND_AUDIO_BUFFER_WRITE, sampleCount & 0xFF, 8, samples, sampleCount*4, buf, 2))
+            return false;
+
+    *status = buf[0] << 8 | buf[1];
+    return true;
 }
 
 bool IRAM_ATTR fpga_api_gpu_framebuffer_wait_for_vblank_write(fpga_qspi_t *qspi, uint32_t startIdx, uint8_t *pixels, int pixelCount)
