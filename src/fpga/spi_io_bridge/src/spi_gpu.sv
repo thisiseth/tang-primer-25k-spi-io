@@ -84,11 +84,14 @@ module spi_gpu
         COMMAND_FRAMEBUFFER_SET_PALETTE         = 8'b10000011, //read phase only, 256*3 bytes of palette starting from [0]
         COMMAND_FRAMEBUFFER_GET_PALETTE         = 8'b01000011, //write phase only, 256*3 bytes of palette starting from [0]
         COMMAND_READ_STATUS0                    = 8'b01000000, //write 1 byte of status register 0
+        COMMAND_READ_MAGIC_NUMBER               = 8'b01100000, //write 2 bytes of magic number to check that fpga is present and initialized
         COMMAND_DISABLE_OUTPUT                  = 8'b00000000,
         COMMAND_ENABLE_OUTPUT                   = 8'b00000001,
         COMMAND_AUDIO_BUFFER_READ_STATUS        = 8'b01010000, //write only, 4 bits of flags + 12 bits of number of samples in buffer = 2 bytes
         COMMAND_AUDIO_BUFFER_WRITE              = 8'b11010001  //read+write, read 1 byte (1-256) of how many samples will be written, then read 32bits*number of samples, then write status 2 bytes
     } command_code;
+
+    localparam int MAGIC_NUMBER = 16'b1010010111000011;
 
     logic [7:0] command_bits;
 
@@ -234,15 +237,17 @@ module spi_gpu
                 WRITE_DUMMY :      
                 begin
                     unique0 case (command_enum)
-                        COMMAND_AUDIO_BUFFER_READ_STATUS : audio_fifo_wr_clk <= ~counter;
+                        COMMAND_AUDIO_BUFFER_READ_STATUS : audio_fifo_wr_clk <= ~counter[0];
                     endcase
                 end
                 WRITE : 
-                begin
+                begin //set write_done flags
                     unique0 case (command_enum)
-                        COMMAND_READ_STATUS0 : write_done <= counter > 0;
-                        COMMAND_FRAMEBUFFER_GET_PALETTE : write_done <= (counter+1) >= 1536;
-                        COMMAND_AUDIO_BUFFER_READ_STATUS, COMMAND_AUDIO_BUFFER_WRITE : write_done <= counter >= 3;
+                        COMMAND_READ_STATUS0 : write_done <= counter >= 1;
+                        COMMAND_FRAMEBUFFER_GET_PALETTE : write_done <= counter >= 1535;
+                        COMMAND_AUDIO_BUFFER_READ_STATUS, 
+                        COMMAND_AUDIO_BUFFER_WRITE, 
+                        COMMAND_READ_MAGIC_NUMBER : write_done <= counter >= 3;
                     endcase
                 end
                 DONE : ;
@@ -321,7 +326,9 @@ module spi_gpu
                             if ((counter % 6) == 1)
                                 framebuffer_clk_palette_pulse_2 <= 1;
                         end
-                        COMMAND_AUDIO_BUFFER_READ_STATUS, COMMAND_AUDIO_BUFFER_WRITE: {data_out, tmp8[15:4]} <= tmp8[15:0];
+                        COMMAND_AUDIO_BUFFER_READ_STATUS, 
+                        COMMAND_AUDIO_BUFFER_WRITE, 
+                        COMMAND_READ_MAGIC_NUMBER : {data_out, tmp8[15:4]} <= tmp8[15:0];
                     endcase
                 end
                 DONE : ;
@@ -345,6 +352,7 @@ module spi_gpu
                             COMMAND_FRAMEBUFFER_GET_PALETTE : {data_out, tmp8[23:4]} <= framebuffer_palette_out;
                             COMMAND_AUDIO_BUFFER_READ_STATUS : {data_out, tmp8[15:4]} <= {2'b0, audio_fifo_almost_full, audio_fifo_full, 1'b0, audio_fifo_wnum};
                             COMMAND_AUDIO_BUFFER_WRITE : {data_out, tmp8[15:4]} <= tmp7[15:0];
+                            COMMAND_READ_MAGIC_NUMBER : {data_out, tmp8[15:4]} <= MAGIC_NUMBER[15:0];
                         endcase
                     end
                     DONE :

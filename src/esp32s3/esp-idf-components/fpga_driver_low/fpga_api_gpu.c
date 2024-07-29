@@ -10,15 +10,30 @@ typedef enum
     COMMAND_FRAMEBUFFER_SET_PALETTE         = 0b10000011, //read phase only, 256*3 bytes of palette starting from [0]
     COMMAND_FRAMEBUFFER_GET_PALETTE         = 0b01000011, //write phase only, 256*3 bytes of palette starting from [0]
     COMMAND_READ_STATUS0                    = 0b01000000,
+    COMMAND_READ_MAGIC_NUMBER               = 0b01100000, //write 2 bytes of magic number to check that fpga is present and initialized
     COMMAND_DISABLE_OUTPUT                  = 0b00000000,
     COMMAND_ENABLE_OUTPUT                   = 0b00000001,    
     COMMAND_AUDIO_BUFFER_READ_STATUS        = 0b01010000, //write only, 4 bits of flags + 12 bits of number of samples in buffer = 2 bytes
     COMMAND_AUDIO_BUFFER_WRITE              = 0b11010001  //read+write, read 1 byte (1-256) of how many samples will be written, then read 32bits*number of samples, then write status 2 bytes
 } FPGA_GPU_COMMAND;
 
+#define FPGA_GPU_MAGIC_NUMBER (0b1010010111000011)
+
 bool IRAM_ATTR fpga_api_gpu_read_status0(fpga_qspi_t *qspi, uint8_t *result)
 {
     return fpga_qspi_send_gpu(qspi, COMMAND_READ_STATUS0, 0, 0, NULL, 0, result, 1);
+}
+
+bool IRAM_ATTR fpga_api_gpu_read_magic_number(fpga_qspi_t *qspi, bool *result)
+{
+    WORD_ALIGNED_ATTR uint8_t buf[4] = { 0 };    
+
+    if (!fpga_qspi_send_gpu(qspi, COMMAND_READ_MAGIC_NUMBER, 0, 0, NULL, 0, buf, 2))
+        return false;
+
+    *result = buf[0] == (FPGA_GPU_MAGIC_NUMBER >> 8) && buf[1] == (FPGA_GPU_MAGIC_NUMBER & 0xFF);
+    
+    return true;
 }
 
 bool IRAM_ATTR fpga_api_gpu_enable_output(fpga_qspi_t *qspi)

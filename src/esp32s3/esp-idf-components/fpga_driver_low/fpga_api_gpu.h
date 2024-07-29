@@ -6,6 +6,7 @@
 #define STATUS0_GET_VBLANK(status0) (((status0) & 0b00000010) >> 1)
 
 bool fpga_api_gpu_read_status0(fpga_qspi_t *qspi, uint8_t *result);
+bool fpga_api_gpu_read_magic_number(fpga_qspi_t *qspi, bool *result);
 
 bool fpga_api_gpu_enable_output(fpga_qspi_t *qspi);
 bool fpga_api_gpu_disable_output(fpga_qspi_t *qspi);

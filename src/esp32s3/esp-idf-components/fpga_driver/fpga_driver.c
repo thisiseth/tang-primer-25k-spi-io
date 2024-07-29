@@ -76,7 +76,7 @@ bool fpga_driver_init(fpga_driver_config_t *config)
     return init = true;
 }
 
-static IRAM_ATTR bool driver_timer_tick(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx)
+static bool IRAM_ATTR driver_timer_tick(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     
@@ -87,7 +87,7 @@ static IRAM_ATTR bool driver_timer_tick(gptimer_handle_t timer, const gptimer_al
 
 #include "driver/gpio.h"
 
-static IRAM_ATTR void driver_task_main(void *arg)
+static void IRAM_ATTR driver_task_main(void *arg)
 {
     ESP_LOGI(TAG, "fpga driver task started");
 
@@ -96,6 +96,7 @@ static IRAM_ATTR void driver_task_main(void *arg)
     gpio_set_direction(37, GPIO_MODE_OUTPUT);
 
     int pink = 0;
+    bool green = false;
     /////////////
 
     for (;;)
@@ -103,7 +104,10 @@ static IRAM_ATTR void driver_task_main(void *arg)
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
         /////////////////
+        fpga_api_gpu_read_magic_number(&qspi, &green);
+
         gpio_set_level(35, pink = !pink);
+        gpio_set_level(37, green);
         /////////////////
     }
 
