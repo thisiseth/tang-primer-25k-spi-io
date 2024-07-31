@@ -8,33 +8,17 @@
 #include "esp_log.h"
 #include "esp_err.h"
 #include "driver/gpio.h"
+#include "esp_timer.h"
+#include "math.h"
 
-#include "fpga_qspi.h"
-#include "fpga_api_gpu.h"
 #include "fpga_driver.h"
 #include "pmod_board.h"
 
-#define FPGA_SPI_CS0 41
-#define FPGA_SPI_CS1 39
-#define FPGA_SPI_SCLK 2
-
-#define FPGA_SPI_D0 5
-#define FPGA_SPI_D1 7
-#define FPGA_SPI_D2 16
-#define FPGA_SPI_D3 18
-
-DMA_ATTR uint8_t sendBuf[320*240] = { 0 };
-DMA_ATTR uint8_t receiveBuf[128] = { 0 };
-
 #define PIXEL_IDX(x, y) ((x) + (y)*320)
-
-#define SwapFourBytes(data)   \
-( (((data) >> 24) & 0x000000FF) | (((data) >>  8) & 0x0000FF00) | \
-  (((data) <<  8) & 0x00FF0000) | (((data) << 24) & 0xFF000000) ) 
 
 int audio_saw;
 
-uint32_t inline next_sample()
+uint32_t inline next_sample_saw()
 {
     if (audio_saw > 1023)
         audio_saw = 0;
@@ -42,164 +26,119 @@ uint32_t inline next_sample()
         ++audio_saw;
 
     uint32_t ret;
+          // LEFT  
+    ret = audio_saw;
 
-    ret = audio_saw << 16 | audio_saw;
-    ret = SwapFourBytes(ret);
+    if (gpio_get_level(PMOD_BUTTON))
+        ret |= audio_saw << 16; // RIGHT
 
     return ret;
 }
 
+#define SINE_FREQ 200
+#define SINE_AMPLITUDE 1024
+
+float phase = 0.0;
+float phaseIncrement = 2.0 * M_PI * SINE_FREQ / FPGA_DRIVER_AUDIO_SAMPLE_RATE;
+
+uint32_t next_sample_sine() 
+{
+    int16_t sample = (int16_t)(SINE_AMPLITUDE * sinf(phase));
+    phase += phaseIncrement;
+    
+    if (phase >= 2.0 * M_PI) 
+        phase -= 2.0 * M_PI;
+    
+    uint32_t combinedSample = (uint16_t)sample;
+
+    if (gpio_get_level(PMOD_BUTTON))
+        combinedSample |= (uint32_t)sample << 16; // RIGHT
+
+    return combinedSample;
+}
+
+void audio_requested_callback(uint32_t *buffer, int *sampleCount, int maxSampleCount)
+{
+    for (int i = 0; i < maxSampleCount; ++i)
+        buffer[i] = next_sample_sine();
+
+    *sampleCount = maxSampleCount;
+}
+
+void user_task(void *arg)
+{
+    uint8_t *palette, *framebuffer;
+
+    fpga_driver_get_framebuffer(&palette, &framebuffer);
+
+    //initialize palettes with something
+    for (int i = 0; i < 2; ++i)
+    {
+        for (int j = 0; j < 256; ++j)
+        {
+            palette[3*j] = j;
+            palette[3*j + 1] = j;
+            palette[3*j + 2] = j;
+        }
+
+        fpga_driver_present_frame(&palette, &framebuffer, FPGA_DRIVER_VSYNC_WAIT_IF_PREVIOUS_NOT_PRESENTED);
+    }
+
+    int64_t time = 0;
+    int fps = 0;
+
+    int temp1 = 0;
+
+    fpga_driver_register_audio_requested_cb(audio_requested_callback);
+
+    for (;;)
+    {
+        taskYIELD();
+
+        int64_t new_time = esp_timer_get_time();
+
+        if (new_time - time >= 1000000)
+        {
+            printf("FPS: %d\n", fps);
+            fps = 0;
+            time = new_time;
+        }
+
+        ++fps;
+
+        ////////////////////////////
+
+        for (int i = 0; i < FPGA_DRIVER_FRAMEBUFFER_SIZE_BYTES; ++i)
+        {
+            framebuffer[i] = i % 320 + temp1;
+        }
+
+        ++temp1;
+
+        fpga_driver_present_frame(&palette, &framebuffer, FPGA_DRIVER_VSYNC_DONT_WAIT_OVERWRITE_PREVIOUS);
+    }
+}
+
 void app_main(void)
 {
+    gpio_set_direction(PMOD_LED_GREEN, GPIO_MODE_OUTPUT);
+    gpio_set_direction(PMOD_LED_PINK, GPIO_MODE_OUTPUT);
+    gpio_set_direction(PMOD_BUTTON, GPIO_MODE_INPUT);
+    gpio_set_pull_mode(PMOD_BUTTON, GPIO_PULLUP_ONLY);
+
     fpga_driver_config_t driver_config = 
     {
-        .pinCsGpu = FPGA_SPI_CS0,
-        .pinCsIo = FPGA_SPI_CS1,
-        .pinSclk = FPGA_SPI_SCLK,
-        .pinD0 = FPGA_SPI_D0,
-        .pinD1 = FPGA_SPI_D1,
-        .pinD2 = FPGA_SPI_D2,
-        .pinD3 = FPGA_SPI_D3
+        .pinCsGpu = PMOD_FPGA_SPI_CS0,
+        .pinCsIo = PMOD_FPGA_SPI_CS1,
+        .pinSclk = PMOD_FPGA_SPI_SCLK,
+        .pinD0 = PMOD_FPGA_SPI_D0,
+        .pinD1 = PMOD_FPGA_SPI_D1,
+        .pinD2 = PMOD_FPGA_SPI_D2,
+        .pinD3 = PMOD_FPGA_SPI_D3
     };
 
     if (!fpga_driver_init(&driver_config))
         printf("failed to init driver\n");
 
-    gpio_set_direction(PMOD_LED_GREEN, GPIO_MODE_OUTPUT);
-
-    for (;;)
-    {
-        gpio_set_level(PMOD_LED_GREEN, fpga_driver_is_connected());
-        vTaskDelay(1);
-    }
-}
-
-void app_main2(void)
-{
-    esp_err_t ret;
-
-    printf("123\n");
-
-    fpga_qspi_t qspi;
-
-    printf("init: %d\n", fpga_qspi_init(&qspi, FPGA_SPI_CS0, FPGA_SPI_CS1, FPGA_SPI_SCLK, FPGA_SPI_D0, FPGA_SPI_D1, FPGA_SPI_D2, FPGA_SPI_D3));
-
-    printf("paletted palette\n");
-
-    for (int color = 0; color < 256; ++color)
-    {
-        sendBuf[3*color] = 30; //R
-        sendBuf[3*color+1] = color/2; //G
-        sendBuf[3*color+2] = color; //B
-    }
-
-    sendBuf[0] = 128;
-    sendBuf[1] = 0;
-    sendBuf[2] = 0;
-
-    sendBuf[765] = 0;
-    sendBuf[766] = 128;
-    sendBuf[767] = 0;
-
-    printf("set palette: %d\n", fpga_api_gpu_set_palette(&qspi, sendBuf));
-
-    for (int y = 0; y < 240; ++y)
-        for (int x = 0; x < 320; ++x)
-        {
-            if (x == 0 || x == 319 || y == 0 || y == 239)
-            {
-                sendBuf[PIXEL_IDX(x, y)] = 0;
-                continue;
-            }
-
-            int tileX = x / 20; //16*16 tiles
-            int tileY = y / 15;
-
-            sendBuf[PIXEL_IDX(x, y)] = tileY * 16 + tileX;
-        }
-
-    printf("tiled framebuffer\n");
-
-    printf("write frame: %d\n", fpga_api_gpu_framebuffer_write(&qspi, 0, sendBuf, 76800));
-
-    //int pipixel = 0;
-    //uint8_t pipixel_tmp;
-
-    uint16_t status;
-    bool almostFullOccurred, fullOccurred, currentAlmostFull, currentFull;
-
-    uint16_t num;
-    WORD_ALIGNED_ATTR uint32_t samples[256];
-
-    for (;;)
-    {
-        //printf("send: %d\n", fpga_qspi_send_gpu(&qspi, 0b01000000, 0, 0, NULL, 0, receiveBuf, 2));
-        //printf("send: %d\n", fpga_qspi_send_gpu(&qspi, 0b00000100, 0, 0, NULL, 0, receiveBuf, 1));
-        //printf("send: %d\n", fpga_qspi_send_gpu(&qspi, 0b01001000, 0, 0, NULL, 0, receiveBuf, 1));
-        //printf("send: %d\n", fpga_api_gpu_read_status0(&qspi, receiveBuf));
-        //printf("recv: 0x%02X%02X\n", receiveBuf[0], receiveBuf[1]);
-
-        //fpga_api_gpu_enable_output(&qspi);
-
-        //for (int color = 0; color < 768; ++color)
-        //    sendBuf[color] += 1;
-    
-        //printf("set palette: %d\n", fpga_api_gpu_set_palette(&qspi, sendBuf));
-        
-        //fpga_api_gpu_disable_output(&qspi);
-
-        // pipixel_tmp = sendBuf[pipixel];
-        // sendBuf[pipixel] = 255;
-
-        // fpga_api_gpu_framebuffer_write(&qspi, 0, sendBuf, 76800);
-
-        // sendBuf[pipixel] = pipixel_tmp;
-
-        // ++pipixel;
-        // pipixel = pipixel < (320*240) ? pipixel : 0;
-
-        //vTaskDelay(1);
-
-        //for (int i = 0; i < (320*240); ++i)
-        //    sendBuf[i] = ~sendBuf[i];
-
-        //fpga_api_gpu_framebuffer_wait_for_vblank_write(&qspi, 0, sendBuf, 76800);
-
-        //vTaskDelay(1000 / portTICK_PERIOD_MS);
-
-        //vTaskDelay(1);
-
-        fpga_api_gpu_read_status0(&qspi, receiveBuf);
-        printf("recv: 0x%02X%02X\n", receiveBuf[0], receiveBuf[1]);
-
-        if (!fpga_api_gpu_audio_buffer_read_status(&qspi, &status))
-            printf("ERROR1\n");
-
-        currentAlmostFull = !!(status & 0b0010000000000000);
-        currentFull = !!(status & 0b0001000000000000);
-        num = status & 0xFFF;
-
-        printf("audio status: %d %d num: %d\n", currentAlmostFull, currentFull, num);
-
-        if (num > 500)
-            continue;
-        
-        #define SAMPLE_BATCH 256
-
-        for (int i = 0; i < SAMPLE_BATCH; ++i)
-                samples[i] = next_sample();
-
-        printf("sending samples...\n");
-        
-        if (!fpga_api_gpu_audio_buffer_write(&qspi, (uint8_t*)samples, SAMPLE_BATCH, &status))
-            printf("ERROR2\n");
-
-        almostFullOccurred = !!(status & 0b1000000000000000);
-        fullOccurred = !!(status & 0b0100000000000000);
-        currentAlmostFull = !!(status & 0b0010000000000000);
-        currentFull = !!(status & 0b0001000000000000);
-        num = status & 0xFFF;
-
-        printf("audio status after send: %d %d %d %d num: %d\n", almostFullOccurred, fullOccurred, currentAlmostFull, currentFull, num);
-    }
+    xTaskCreatePinnedToCore(user_task, "user_task", 4096, NULL, tskIDLE_PRIORITY+1, NULL, 1);
 }

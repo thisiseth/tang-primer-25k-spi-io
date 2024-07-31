@@ -31,6 +31,18 @@ module spi_gpu
     output logic test_led_ready, test_led_done,
     output logic [7:0] test_led
 );
+    //clock domain crossing
+
+    logic [1:0] framebuffer_hblank_sync_ff, framebuffer_vblank_sync_ff;
+    
+    wire framebuffer_hblank_sync = framebuffer_hblank_sync_ff[0];
+    wire framebuffer_vblank_sync = framebuffer_vblank_sync_ff[0];
+    
+    always_ff @(posedge sclk)
+    begin
+        framebuffer_hblank_sync_ff <= {framebuffer_hblank, framebuffer_hblank_sync_ff[1]};
+        framebuffer_vblank_sync_ff <= {framebuffer_vblank, framebuffer_vblank_sync_ff[1]};
+    end
 
     //spi stuff
     //
@@ -64,7 +76,7 @@ module spi_gpu
 
     logic [7:0] status_register0;
 
-    assign status_register0 = {5'b10110, framebuffer_hblank, framebuffer_vblank, output_enabled};
+    assign status_register0 = {5'b10110, framebuffer_hblank_sync, framebuffer_vblank_sync, output_enabled};
 
     int counter;
     logic [3:0] tmp1, tmp2, tmp3;

@@ -111,24 +111,3 @@ bool IRAM_ATTR fpga_api_gpu_audio_buffer_write(fpga_qspi_t *qspi, uint8_t *sampl
     *status = buf[0] << 8 | buf[1];
     return true;
 }
-
-bool IRAM_ATTR fpga_api_gpu_framebuffer_wait_for_vblank_write(fpga_qspi_t *qspi, uint32_t startIdx, uint8_t *pixels, int pixelCount)
-{
-    WORD_ALIGNED_ATTR uint8_t buf[4] = { 0 };
-
-    do //wait for vblank end, if in progress
-    {
-        if (!fpga_qspi_send_gpu(qspi, COMMAND_READ_STATUS0, 0, 0, NULL, 0, buf, 1))
-            return false;
-    }
-    while (STATUS0_GET_VBLANK(buf[0]));
-
-    do //then wait for vblank start
-    {
-        if (!fpga_qspi_send_gpu(qspi, COMMAND_READ_STATUS0, 0, 0, NULL, 0, buf, 1))
-            return false;
-    }
-    while (!STATUS0_GET_VBLANK(buf[0]));
-
-    return fpga_api_gpu_framebuffer_write(qspi, startIdx, pixels, pixelCount);
-}

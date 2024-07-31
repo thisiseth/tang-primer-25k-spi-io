@@ -44,6 +44,8 @@ module top
 
     logic pll_hdmi_lock, pll_usb_lock;
 
+    wire plls_locked = pll_hdmi_lock & pll_usb_lock;
+
     logic clk_pixel;
     logic clk_pixel_x5;
     logic clk_usb_48m;
