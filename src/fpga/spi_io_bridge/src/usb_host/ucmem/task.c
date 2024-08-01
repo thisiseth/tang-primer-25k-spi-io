@@ -94,7 +94,7 @@ static void check_root(TASK *task)
     // wait for connection
     if ((task->prt_flags & (PRT_POWER|PRT_CONNECT)) == PRT_POWER) {
         while ((usbh[REG_STAT] & STAT_DETECT) == 0) ;
-        task->prt_speed  = (usbh[REG_STAT] & 1) ? SPEED_FS : SPEED_LS;
+        task->prt_speed  = (usbh[REG_STAT] & STAT_DP) ? SPEED_FS : SPEED_LS;
         task->prt_flags |= PRT_CONNECT;
         printf("device connect, speed = %x\n", task->prt_speed);
         wait_ms(20);

@@ -24,11 +24,11 @@ module usb_host
     output reg signed [31:0] mouse_wheel
 );
 
-    reg [1:0]        rstn_sync = 0;
+    reg [3:0]        rstn_sync = 0;
     wire             rstn = rstn_sync[0];
 
     always @(posedge clk_48m) 
-        rstn_sync <= {~reset, rstn_sync[1]};
+        rstn_sync <= {~reset, rstn_sync[3:1]};
       
     // Microcontroller
     //
