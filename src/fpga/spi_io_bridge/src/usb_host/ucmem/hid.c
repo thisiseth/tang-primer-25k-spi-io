@@ -24,6 +24,15 @@ struct hid_data {
 
 #define local ((struct hid_data *)task->data)
 
+uint32_t *hid_output = (uint32_t *)0x22000000;
+
+static uint32_t reg_status = 0;
+static uint32_t reg_keys1 = 0;
+static uint32_t reg_keys2 = 0;
+static int32_t reg_mouse_x = 0;
+static int32_t reg_mouse_y = 0;
+static int32_t reg_mouse_wheel = 0;
+
 // Driver for HID keyboard and mouse
 //
 void drv_hid(TASK *task, uint8_t *config)
@@ -48,26 +57,26 @@ void drv_hid(TASK *task, uint8_t *config)
 
             if(1)
             {
-            if (iface->bInterfaceClass == 3 && iface->bInterfaceSubClass == 1) {
-                switch (iface->bInterfaceProtocol) {
-                case KBD:   task->state   = hid_keybd1;
-                            local->flags |= KBD;
-                            ept = find_desc(config, EPT_ID);
-                            local->kbd_ep  = ept->bEndpointAddress & 0x0f;
-                            printf("std keyboard detected (%d)\n", local->kbd_ep);
-                            break;
+                if (iface->bInterfaceClass == 3 && iface->bInterfaceSubClass == 1) {
+                    switch (iface->bInterfaceProtocol) {
+                    case KBD:   task->state   = hid_keybd1;
+                                local->flags |= KBD;
+                                ept = find_desc(config, EPT_ID);
+                                local->kbd_ep  = ept->bEndpointAddress & 0x0f;
+                                printf("std keyboard detected (%d)\n", local->kbd_ep);
+                                break;
 
-                case MSE:   task->state   = hid_mouse1;
-                            local->flags |= MSE;
-                            ept = find_desc(config, EPT_ID);
-                            local->ms_ep  = ept->bEndpointAddress & 0x0f;
-                            printf("std mouse detected (%d)\n", local->ms_ep);
-                            break;
+                    case MSE:   task->state   = hid_mouse1;
+                                local->flags |= MSE;
+                                ept = find_desc(config, EPT_ID);
+                                local->ms_ep  = ept->bEndpointAddress & 0x0f;
+                                printf("std mouse detected (%d)\n", local->ms_ep);
+                                break;
 
-                default:    printf("HID boot device not recognised\n");
-                            continue;
+                    default:    printf("HID boot device not recognised\n");
+                                continue;
+                    }
                 }
-            }
             }
             else
             {
@@ -101,7 +110,7 @@ void drv_hid(TASK *task, uint8_t *config)
             return;
         }
         task->state = (local->flags & KBD) ? hid_keybd1 : hid_mouse1;
-        task->when = now_ms() + 10;
+        task->when = now_ms() + (local->flags & KBD) ? 0 : 10;
         if (task->req->resp == REQ_OK) {
             local->ms_toggle = task->req->toggle;
             printf("MOUSE: ");

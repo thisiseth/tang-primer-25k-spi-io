@@ -1,6 +1,8 @@
 #include "sys.h"
 #include "usb.h"
 
+#define NOPRINT
+
 #ifndef NOPRINT
 
 void prn_dev_desc(uint8_t *data)

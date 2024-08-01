@@ -187,20 +187,6 @@ module top
         audio_sample_word <= '{audio_fifo_out[31:16], audio_fifo_out[15:0]}; //if fifo is empty last sample should be output
     end
 
-//////////
-//    assign audio_fifo_wr_clk = clk_audio;
-//    assign audio_fifo_wren = 1'b1;
-
-//    logic [10:0] audio_saw;
-
-//    always_ff @(posedge clk_audio)
-//    begin
-//        audio_fifo_in <= {16'(button_s1 ? audio_saw : 0), 16'(button_s2 ? audio_saw : 0)};
-
-//        audio_saw <= audio_saw + 1;
-//    end
-//////////
-
     // usb
 
     usb_host usb_host 

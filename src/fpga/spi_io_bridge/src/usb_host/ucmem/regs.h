@@ -55,3 +55,12 @@
 #define RX_TIMEOUT  0x20000000
 #define SIE_IDLE    0x10000000
 
+// HID output register numbers
+
+#define HID_OUTPUT_STATUS       0x00
+#define HID_OUTPUT_REG_KEYS_1   0x01
+#define HID_OUTPUT_REG_KEYS_2   0x02
+#define HID_OUTPUT_MOUSE_X      0x03
+#define HID_OUTPUT_MOUSE_Y      0x04
+#define HID_OUTPUT_MOUSE_SCROLL 0x05
+

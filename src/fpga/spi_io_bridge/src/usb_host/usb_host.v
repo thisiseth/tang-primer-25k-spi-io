@@ -10,8 +10,18 @@ module usb_host
     inout  wire usb_dp,      // D+
     inout  wire usb_dn,      // D-
    
-    output  wire cpu_uart_tx,
-    input wire cpu_uart_rx
+    output wire cpu_uart_tx,
+    input wire cpu_uart_rx,
+
+    output reg keyboard_connected, mouse_connected,
+
+    output reg [7:0] keyboard_modifiers,
+    output reg [7:0] keyboard_keycodes [5:0],
+
+    output reg [7:0] mouse_buttons,
+    output reg signed [31:0] mouse_x,
+    output reg signed [31:0] mouse_y,
+    output reg signed [31:0] mouse_wheel
 );
 
     reg [1:0]        rstn_sync = 0;
@@ -43,6 +53,7 @@ module usb_host
     assign cpu_di = sie_sel  ? sie_di  :
                     uart_sel ? uart_di :
                     32'b0;
+
     wire sie_sel = (cpu_ad[31:8] == 24'h210000);
       
     // USB host PHY + SIE hardware
@@ -115,8 +126,8 @@ module usb_host
         .utmi_dmpulldown_o(utmi_dmpulldown)
     );
 
-      // UART + Timer
-      //
+    // UART + Timer
+    //
     wire uart_sel = (cpu_ad[31:8] == 24'h200000);
     wire [31:0] uart_di;
       
@@ -134,6 +145,10 @@ module usb_host
         .RXD(cpu_uart_rx),
         .TXD(cpu_uart_tx)
       );
+
+    // HID output regs
+    //
+    
 
 endmodule
 
