@@ -348,7 +348,7 @@ module FIFO (
   input  wire       pop_i
   );
 
-  reg [7:0] ram [0:63];
+  reg [7:0] ram [0:63] /* synthesis syn_ramstyle = "block_ram" */;
   reg [5:0] rd_ptr,wr_ptr;
   reg [6:0] count;
   
