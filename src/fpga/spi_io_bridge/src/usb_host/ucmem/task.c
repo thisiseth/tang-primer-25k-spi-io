@@ -16,6 +16,8 @@ void root_reset(void)
     // UTMI+ reset is: opmode = 2, termselect = 0, xcvrselect = 0
     // and DP+DM pulldown = 1.
     usbh[REG_CTRL] = CTL_OPMODE2|CTL_XCVRSEL0|CTL_DP_PULLD|CTL_DN_PULLD;
+
+    //printf("root reset\n");
 }
 
 // Configure the root port: set speed and SOF generation
@@ -72,6 +74,8 @@ uint8_t donotspam = 0;
 //
 static void check_root(TASK *task)   
 {
+    //printf("regstat: %d%d%d%d dt_ctr12: %d\n", usbh[REG_STAT] & (0x8), usbh[REG_STAT] & (0x4), usbh[REG_STAT] & (0x2), usbh[REG_STAT] & (0x1), (usbh[REG_STAT] & 0xFFF0) >> 4);
+
     // device disconnected?
     if ((usbh[REG_STAT] & STAT_DETECT) == 0) {
         if (!donotspam)
@@ -103,6 +107,7 @@ static void check_root(TASK *task)
     // reset port / device
     if ((task->prt_flags & (PRT_CONNECT|PRT_RESET)) == PRT_CONNECT) {
         root_reset();
+        reset_enum();
         wait_ms(50);
         root_config(task->prt_speed, (sim ? 0 : 1));
         task->prt_flags |= PRT_RESET;

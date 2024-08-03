@@ -139,7 +139,7 @@ struct memhdr {
 typedef struct memhdr HDR;
 
 // pool size in 8 byte clicks: 32 = 256 bytes of malloc pool
-#define MALLOCSZ    32
+#define MALLOCSZ    64
 
 static HDR  base;            // zero sized list anchor, requirement: &base < &core
 static HDR  core[MALLOCSZ];  // allocation pool in 8 byte units

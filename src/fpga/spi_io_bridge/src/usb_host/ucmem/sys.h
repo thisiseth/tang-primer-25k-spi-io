@@ -106,6 +106,7 @@ void   do_request_step(REQ *req);
 void   setup_req(TASK *task, uint8_t typ, uint8_t req, uint16_t val, uint16_t idx, uint16_t len);
 void   data_req(TASK *task, uint8_t ep, uint8_t dir, uint8_t *data, uint16_t len);
 // enum.c
+void   reset_enum(void);
 void  *find_desc(void *data, uint8_t type);
 void   enum_dev(TASK *task, uint8_t *data);
 // hub.c

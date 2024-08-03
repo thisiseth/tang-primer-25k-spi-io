@@ -34,6 +34,9 @@ module usb11_regs (
   input  [1:0]   utmi_linestate_i
   );
 
+  reg  rx_flush, start_req, send_sof, in_transfer, resp_expected;
+  wire start_ack;
+
   wire reg_wr = m_wr & m_sel;
   wire reg_rd = m_rd & m_sel;
 
@@ -84,7 +87,7 @@ module usb11_regs (
   wire tx_sts29 = timeout  & ~reg_tx_token[31];
   wire tx_sts28 = sie_idle & ~reg_tx_token[31];
   
-  assign reg_sts            = { sof_timer, 12'b0, detect, phy_err, utmi_linestate_i };  
+  assign reg_sts            = { sof_timer, dt_ctr_12, detect, phy_err, utmi_linestate_i };  
   assign reg_rx_stat[31:24] = { start_req, tx_sts30, tx_sts29, tx_sts28, 4'b0 };
   
   // output multiplexer
@@ -240,9 +243,7 @@ end
   // SIE transaction controller
   //-----------------------------------------------------------------
 
-  reg  rx_flush, start_req, send_sof, in_transfer, resp_expected;
   wire can_send = ~(in_guardband & sof_enable) & sie_idle;
-  wire start_ack;
 
   always @(posedge clk_i or posedge rst_i) begin
     if (rst_i) begin
@@ -294,16 +295,32 @@ end
   wire           dt_up   = (dt_ctr[`SPEED:`SPEED-1] == 2'b11);
   wire           dt_down = (dt_ctr[`SPEED:`SPEED-1] == 2'b00);
 
+  wire [11:0] dt_ctr_12 = dt_ctr[`SPEED:(`SPEED-11)];
+
   reg phy_err, sie_err, detect;
+
+  reg [1:0] linestate_sync [2];
   
-  always @(posedge clk_i or posedge rst_i) begin
-    if (rst_i) begin
+  always @(posedge clk_i) 
+  begin
+    if (rst_i) 
+      linestate_sync <= '{2'b0, 2'b0};
+    else 
+      linestate_sync[0] <= utmi_linestate_i;
+      linestate_sync[1] <= linestate_sync[0];
+  end
+
+  always @(posedge clk_i) 
+  begin
+    if (rst_i) 
+    begin
         phy_err <= 1'b0;
         sie_err <= 1'b0;
         detect  <= 1'b0;
         dt_ctr  <= 'd0;
-        end
-    else begin
+    end
+    else 
+    begin
       // latch PHY error until reset (any write to ctrl reg)
       if (reg_wr && m_addr==4'h0)
         phy_err <= 1'b0;
@@ -317,10 +334,11 @@ end
         sie_err <= 1'b0;
         
       // detect connect / detach
-      if (utmi_linestate_i != 2'b0 && !(&dt_ctr))
-        dt_ctr <= dt_ctr + 1;
-      else if (utmi_linestate_i == 2'b0 && |dt_ctr)
-        dt_ctr <= dt_ctr - 1;
+      if (linestate_sync[1] != 2'b0)
+        dt_ctr <= (dt_ctr < {(`SPEED+1){1'b1}}) ? (dt_ctr + 1) : dt_ctr;
+      else
+        dt_ctr <= (dt_ctr > 1) ? (dt_ctr - 1) : dt_ctr;
+
       if (dt_up)
         detect <= 1'b1;
       else if (dt_down)

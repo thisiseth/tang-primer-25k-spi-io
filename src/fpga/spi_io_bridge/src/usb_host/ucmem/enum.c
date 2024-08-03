@@ -22,6 +22,11 @@ void set_driver(TASK *task, uint8_t *data);
 
 int nxt_addr = 1;
 
+void reset_enum(void)
+{
+    nxt_addr = 1;
+}
+
 enum enum_state {
   set_addr, get_dev_desc, get_cfg_desc, set_config, get_full_config, dev_enumerated
 };

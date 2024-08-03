@@ -3,6 +3,7 @@
 //File Title: Timing Constraints file
 //Tool Version: V1.9.9.03 (64-bit) 
 //Created Time: 2024-06-28 19:33:15
+
 create_clock -name clk_50m -period 20 -waveform {0 10} [get_ports {clk_50m}]
 
 //create_generated_clock -name clk_hdmi_1080 -source [get_ports {clk_50m}] -master_clock clk_50m -multiply_by 3 [get_pins {pll_hdmi/PLLA_inst/CLKOUT0}]

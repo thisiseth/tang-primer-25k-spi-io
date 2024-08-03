@@ -63,7 +63,7 @@ void prn_ep_desc(uint8_t *data)
 void prn_unknown_desc(uint8_t *data)
 {
     ANY_DESC *desc = (ANY_DESC *)data;
-    printf("UNKOWN DESCRIPTOR:\n");
+    printf("UNKNOWN DESCRIPTOR:\n");
     printf("  bLength=%d\n",             desc->bLength);
     printf("  bDescriptorType=%x\n",     desc->bDescriptorType);
 }
