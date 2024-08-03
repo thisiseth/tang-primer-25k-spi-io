@@ -218,28 +218,23 @@ module spi_gpu
                                 tmp4 <= {tmp4[3:0], data_in};
                             else 
                             begin
-                                tmp10 <= {tmp10[27:0], data_in};
-
                                 audio_fifo_wren <= 1;
 
-                                if ((counter-2)%8 == 7)
-                                begin
-                                    audio_fifo_in <= {tmp10[27:0], data_in};
-                                    audio_fifo_wr_clk <= 1;
+                                tmp10 <= {tmp10[27:0], data_in};
 
+                                if ((counter-2)%8 == 7)
+                                    audio_fifo_in <= {tmp10[27:0], data_in};
+
+                                if ((counter-2)%8 == 0 && (counter-2) > 0)
+                                    audio_fifo_wr_clk <= 1;
+                                else
+                                begin
                                     if (audio_fifo_almost_full)
                                         tmp7[15] <= 1;
                                     if (audio_fifo_full)
                                         tmp7[14] <= 1;
-
-                                                  //write response 16 bits: almost_full_occurred, <- sticky
-                                                  //                        full_occurred,        <- sticky
-                                                  //                        current_almost_full, 
-                                                  //                        current_full, 
-                                                  //                        12 bits of current wnum
-                                    tmp7[13:0] <= {audio_fifo_almost_full, audio_fifo_full, 1'b0, audio_fifo_wnum};
                                 end
-                                
+
                                 if ((counter-2)%8 == 3)
                                     audio_fifo_wr_clk <= 0;
                             end
@@ -250,6 +245,25 @@ module spi_gpu
                 begin
                     unique0 case (command_enum)
                         COMMAND_AUDIO_BUFFER_READ_STATUS : audio_fifo_wr_clk <= ~counter[0];
+                        COMMAND_AUDIO_BUFFER_WRITE : 
+                        begin
+                            audio_fifo_wr_clk <= 1;
+                            
+                            if (counter == 1)
+                            begin
+                                if (audio_fifo_almost_full)
+                                    tmp7[15] <= 1;
+                                if (audio_fifo_full)
+                                    tmp7[14] <= 1;
+
+                                                  //write response 16 bits: almost_full_occurred, <- sticky
+                                                  //                        full_occurred,        <- sticky
+                                                  //                        current_almost_full, 
+                                                  //                        current_full, 
+                                                  //                        12 bits of current wnum
+                                tmp7[13:0] <= {audio_fifo_almost_full, audio_fifo_full, 1'b0, audio_fifo_wnum};
+                            end
+                        end
                     endcase
                 end
                 WRITE : 

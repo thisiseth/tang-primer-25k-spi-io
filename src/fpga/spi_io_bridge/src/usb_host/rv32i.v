@@ -12,7 +12,7 @@ module m_regfile (CLK, w_rs1, w_rs2, w_rdata1, w_rdata2, w_we, rd, w_wdata);
     input  wire [ 4:0] rd;
     input  wire [31:0] w_wdata;
 
-    reg [31:0] mem [0:31];
+    reg [31:0] mem [0:31] /* synthesis syn_ramstyle = "registers" */;
 
     assign w_rdata1 = (w_rs1 == 0) ? 0 : mem[w_rs1];
     assign w_rdata2 = (w_rs2 == 0) ? 0 : mem[w_rs2];
@@ -23,12 +23,12 @@ module m_regfile (CLK, w_rs1, w_rs2, w_rdata1, w_rdata2, w_we, rd, w_wdata);
         end
     end
 
-    wire [31:0] reg8 = mem[8];
-    wire [31:0] reg9 = mem[9];
-    wire [31:0] reg10 = mem[10];
-    wire [31:0] reg11 = mem[11];
-    wire [31:0] reg12 = mem[12];
-    wire [31:0] reg13 = mem[13];
+//    wire [31:0] reg8 = mem[8];
+//    wire [31:0] reg9 = mem[9];
+//    wire [31:0] reg10 = mem[10];
+//    wire [31:0] reg11 = mem[11];
+//    wire [31:0] reg12 = mem[12];
+//    wire [31:0] reg13 = mem[13];
 
     integer i;
     initial begin
