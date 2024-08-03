@@ -337,7 +337,7 @@ end
       if (linestate_sync[1] != 2'b0)
         dt_ctr <= (dt_ctr < {(`SPEED+1){1'b1}}) ? (dt_ctr + 1) : dt_ctr;
       else
-        dt_ctr <= (dt_ctr > 1) ? (dt_ctr - 1) : dt_ctr;
+        dt_ctr <= (dt_ctr > 0) ? (dt_ctr - 1) : dt_ctr;
 
       if (dt_up)
         detect <= 1'b1;
