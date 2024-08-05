@@ -91,6 +91,8 @@ module spi_io
     begin  
         if (cs | reset)
         begin
+            read_done <= 0;
+            write_done <= 0;
         end
         else if (!cs)
         begin
@@ -117,6 +119,9 @@ module spi_io
     begin
         if (cs | reset)
         begin
+            current_state <= IDLE;
+            counter <= 0;
+
             tmp10 <= 0;
         end
         else if (!cs)
