@@ -60,6 +60,8 @@ static volatile uint32_t next_audio_buffer_ready_samples = 0;
 
 static volatile fpga_driver_audio_requested_cb_t audio_requested_callback = NULL;
 
+static hid_status_t hid_status;
+
 static bool driver_timer_tick(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx);
 static void driver_task_function_main(void *arg);
 static void driver_task_function_audio(void *arg);
@@ -207,6 +209,15 @@ void fpga_driver_register_audio_requested_cb(fpga_driver_audio_requested_cb_t ca
     taskEXIT_CRITICAL(&driver_spinlock);
 }
 
+void fpga_driver_hid_get_status(hid_status_t *status)
+{
+    taskENTER_CRITICAL(&driver_spinlock);
+
+    *status = hid_status;
+
+    taskEXIT_CRITICAL(&driver_spinlock);
+}
+
 static bool IRAM_ATTR driver_timer_tick(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
@@ -219,6 +230,8 @@ static bool IRAM_ATTR driver_timer_tick(gptimer_handle_t timer, const gptimer_al
 static void IRAM_ATTR driver_task_function_main(void *arg)
 {
     ESP_LOGI(TAG, "fpga driver main task started");
+
+    bool pollHid = true;
 
     uint8_t status0;
     uint16_t audio_buffer_status;
@@ -242,6 +255,8 @@ static void IRAM_ATTR driver_task_function_main(void *arg)
             taskEXIT_CRITICAL(&driver_spinlock);
             continue;
         }
+
+        //framebuffer and palette
 
         FPGA_DRIVER_ERROR_CHECK(fpga_api_gpu_read_status0(&qspi, &status0));
 
@@ -269,6 +284,8 @@ static void IRAM_ATTR driver_task_function_main(void *arg)
         }
 
         vblank = FPGA_API_GPU_STATUS0_GET_VBLANK(status0);
+
+        //audio buffers
 
         taskENTER_CRITICAL(&driver_spinlock);
 
@@ -302,6 +319,40 @@ static void IRAM_ATTR driver_task_function_main(void *arg)
 
         if (audio_hdmi_fifo_wnum < (FPGA_DRIVER_AUDIO_HDMI_FIFO_SAMPLES - FPGA_DRIVER_AUDIO_BUFFER_WRITE_MAX_SAMPLES - 10))
             xTaskNotifyGive(driver_audio_task);
+
+        //hid kb&mouse
+
+        if (pollHid)
+        {
+            //WORD_ALIGNED_ATTR uint8_t hid_status_buffer[6*4];
+static DMA_ATTR uint8_t hid_status_buffer[6*4];
+
+            FPGA_DRIVER_ERROR_CHECK(fpga_api_io_hid_get_status(&qspi, hid_status_buffer));
+
+            taskENTER_CRITICAL(&driver_spinlock);
+
+            hid_status = (hid_status_t)
+            {
+                .mouseKeys = hid_status_buffer[4],
+                .keyboardModifiers = hid_status_buffer[5],
+                .keyboardKeys = 
+                { 
+                    hid_status_buffer[6], 
+                    hid_status_buffer[7], 
+                    hid_status_buffer[8],
+                    hid_status_buffer[9], 
+                    hid_status_buffer[10],
+                    hid_status_buffer[11] 
+                },
+                .mouseX = (int32_t)(hid_status_buffer[12] << 24 | hid_status_buffer[13] << 16 | hid_status_buffer[14] << 8 | hid_status_buffer[15]),
+                .mouseY = (int32_t)(hid_status_buffer[16] << 24 | hid_status_buffer[17] << 16 | hid_status_buffer[18] << 8 | hid_status_buffer[19]),
+                .mouseWheel = (int32_t)(hid_status_buffer[20] << 24 | hid_status_buffer[21] << 16 | hid_status_buffer[22] << 8 | hid_status_buffer[23])
+            };
+
+            taskEXIT_CRITICAL(&driver_spinlock);
+        }
+
+        pollHid = !pollHid; //every second tick - no hid device works at 2000hz...
     }
 
     vTaskDelete(NULL);

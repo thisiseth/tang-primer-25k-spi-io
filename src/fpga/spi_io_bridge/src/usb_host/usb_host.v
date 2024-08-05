@@ -13,15 +13,17 @@ module usb_host
     output wire cpu_uart_tx,
     input wire cpu_uart_rx,
 
-    output reg keyboard_connected, mouse_connected,
+    input wire hid_read,
 
-    output reg [7:0] keyboard_modifiers,
-    output reg [7:0] keyboard_keycodes [5:0],
+    output reg hid_keyboard_connected, hid_mouse_connected,
 
-    output reg [7:0] mouse_buttons,
-    output reg signed [31:0] mouse_x,
-    output reg signed [31:0] mouse_y,
-    output reg signed [31:0] mouse_wheel
+    output reg [7:0] hid_keyboard_modifiers,
+    output reg [7:0] hid_keyboard_keycodes [5:0],
+
+    output reg [7:0] hid_mouse_buttons,
+    output reg signed [31:0] hid_mouse_x,
+    output reg signed [31:0] hid_mouse_y,
+    output reg signed [31:0] hid_mouse_wheel
 );
 
     reg [3:0]        rstn_sync = 0;
@@ -52,6 +54,7 @@ module usb_host
 
     assign cpu_di = sie_sel  ? sie_di  :
                     uart_sel ? uart_di :
+                    hid_sel  ? hid_di  :
                     32'b0;
 
     wire sie_sel = (cpu_ad[31:8] == 24'h210000);
@@ -148,7 +151,83 @@ module usb_host
 
     // HID output regs
     //
+
+    wire hid_sel = (cpu_ad[31:8] == 24'h220000);
     
+    reg [31:0] hid_reg_status, hid_reg_keys1, hid_reg_keys2; 
+    reg signed [31:0] hid_reg_mouse_x, hid_reg_mouse_y, hid_reg_mouse_wheel;
+
+    reg [1:0] hid_read_sync;
+
+    always @(posedge clk_48m)
+        hid_read_sync <= {hid_read, hid_read_sync[1]};
+
+    wire [31:0] hid_di = (cpu_ad[5:2] == 4'd0) ? hid_reg_status        :
+                         (cpu_ad[5:2] == 4'd1) ? hid_reg_keys1         :
+                         (cpu_ad[5:2] == 4'd2) ? hid_reg_keys2         :
+                         (cpu_ad[5:2] == 4'd3) ? hid_reg_mouse_x       :
+                         (cpu_ad[5:2] == 4'd4) ? hid_reg_mouse_y       :
+                         (cpu_ad[5:2] == 4'd5) ? hid_reg_mouse_wheel   : 
+                         32'b0;
+        
+    always @(posedge clk_48m)
+    begin
+        if (!rstn)
+        begin
+            hid_reg_status <= 31'b0;
+            hid_reg_keys1 <= 31'b0;
+            hid_reg_keys2 <= 31'b0;
+            hid_reg_mouse_x <= 31'b0;
+            hid_reg_mouse_y <= 31'b0;
+            hid_reg_mouse_wheel <= 31'b0;
+        end
+        else if (hid_sel && cpu_wr)
+        begin
+            case (cpu_ad[5:2])
+                4'd0: hid_reg_status      <= cpu_do;
+                4'd1: hid_reg_keys1       <= cpu_do;
+                4'd2: hid_reg_keys2       <= cpu_do;
+                4'd3: hid_reg_mouse_x     <= cpu_do;
+                4'd4: hid_reg_mouse_y     <= cpu_do;
+                4'd5: hid_reg_mouse_wheel <= cpu_do;
+            endcase
+        end
+    end
+
+    always @(posedge clk_48m)
+    begin
+        if (!rstn)
+        begin    
+            hid_keyboard_connected <= 1'b0;
+            hid_mouse_connected <= 1'b0;
+            hid_keyboard_modifiers <= 8'b0;
+            hid_keyboard_keycodes <= '{8'b0, 8'b0, 8'b0, 8'b0, 8'b0, 8'b0};
+            hid_mouse_buttons <= 8'b0;
+            hid_mouse_x <= 31'b0;
+            hid_mouse_y <= 31'b0;
+            hid_mouse_wheel <= 31'b0;
+        end
+        else if (!hid_read_sync[0] && !hid_reg_status[31]) //'busy' bit
+        begin
+            hid_keyboard_connected <= 1'b0;
+            hid_mouse_connected <= 1'b0;
+
+            hid_keyboard_modifiers <= hid_reg_keys1[23:16];
+
+            hid_keyboard_keycodes <= '{hid_reg_keys1[15:8], 
+                                   hid_reg_keys1[7:0], 
+                                   hid_reg_keys2[31:24], 
+                                   hid_reg_keys2[23:16], 
+                                   hid_reg_keys2[15:8], 
+                                   hid_reg_keys2[7:0]};
+
+            hid_mouse_buttons <= hid_reg_keys1[31:24];
+
+            hid_mouse_x <= hid_reg_mouse_x;
+            hid_mouse_y <= hid_reg_mouse_y;
+            hid_mouse_wheel <= hid_reg_mouse_wheel;
+        end
+    end
 
 endmodule
 

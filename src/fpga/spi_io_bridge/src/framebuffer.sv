@@ -25,8 +25,8 @@ module framebuffer
     localparam int SCALE_X = 3;
     localparam int SCALE_Y = 3;
 
-    wire [11:0] frame_border_top_bottom = (screen_height - FRAME_HEIGHT*SCALE_Y)/2;
-    wire [11:0] frame_border_left_right = (screen_width - FRAME_WIDTH*SCALE_X)/2;
+    wire [11:0] frame_border_top_bottom = 12'((screen_height - FRAME_HEIGHT*SCALE_Y)/2);
+    wire [11:0] frame_border_left_right = 12'((screen_width - FRAME_WIDTH*SCALE_X)/2);
 
     bit [7:0] framebuffer [FRAME_WIDTH*FRAME_HEIGHT];
     bit [23:0] palette [256];

@@ -57,10 +57,11 @@
 
 // HID output register numbers
 
-#define HID_OUTPUT_STATUS       0x00
-#define HID_OUTPUT_REG_KEYS_1   0x01
-#define HID_OUTPUT_REG_KEYS_2   0x02
-#define HID_OUTPUT_MOUSE_X      0x03
-#define HID_OUTPUT_MOUSE_Y      0x04
-#define HID_OUTPUT_MOUSE_SCROLL 0x05
+#define REG_HID_OUTPUT_STATUS       0x00
+#define REG_HID_OUTPUT_REG_KEYS_1   0x01 // 0xMSKBKBKB
+#define REG_HID_OUTPUT_REG_KEYS_2   0x02 // 0xKBKBKBKB
+#define REG_HID_OUTPUT_MOUSE_X      0x03 //int32_t integral x
+#define REG_HID_OUTPUT_MOUSE_Y      0x04 //int32_t integral y
+#define REG_HID_OUTPUT_MOUSE_WHEEL  0x05 //int32_t integral wheel
 
+#define HID_STATUS_BUSY 0x80000000

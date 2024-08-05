@@ -31,6 +31,17 @@ typedef enum
     FPGA_DRIVER_VSYNC_WAIT_IF_PREVIOUS_NOT_PRESENTED
 } fpga_driver_vsync_mode_t;
 
+typedef struct
+{
+    uint8_t keyboardModifiers;
+    uint8_t keyboardKeys[6];
+
+    uint8_t mouseKeys;
+    int32_t mouseX;
+    int32_t mouseY;
+    int32_t mouseWheel;
+} hid_status_t;
+
 typedef void (*fpga_driver_audio_requested_cb_t)(uint32_t *buffer, int *sampleCount, int maxSampleCount);
 
 bool fpga_driver_init(fpga_driver_config_t *config);
@@ -42,5 +53,7 @@ void fpga_driver_get_framebuffer(uint8_t **palette, uint8_t **framebuffer);
 void fpga_driver_present_frame(uint8_t **palette, uint8_t **framebuffer, fpga_driver_vsync_mode_t vsync);
 
 void fpga_driver_register_audio_requested_cb(fpga_driver_audio_requested_cb_t callback);
+
+void fpga_driver_hid_get_status(hid_status_t *status);
 
 

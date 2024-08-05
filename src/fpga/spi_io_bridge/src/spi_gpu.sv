@@ -5,10 +5,10 @@ module spi_gpu
     input logic cs, 
     
     input logic sclk,
-    inout logic mosi_d0,
-    inout logic miso_d1,
-    inout logic d2,
-    inout logic d3,
+    inout wire mosi_d0,
+    inout wire miso_d1,
+    inout wire d2,
+    inout wire d3,
 
     output logic [7:0] framebuffer_rgb_in,
     input logic [7:0] framebuffer_rgb_out,
@@ -429,7 +429,7 @@ module spi_gpu
                 IDLE : next_state = COMMAND;
                 COMMAND : next_state = command_has_read(command_enum) ? READ : (command_has_write(command_enum) ? WRITE_DUMMY : DONE);
                 READ : next_state = read_done ? (command_has_write(command_enum) ? WRITE_DUMMY : DONE) : READ;
-                WRITE_DUMMY : next_state = counter >= (WRITE_DUMMY_CYCLES-1) ? WRITE : WRITE_DUMMY; //4 dummy cycles
+                WRITE_DUMMY : next_state = counter >= (WRITE_DUMMY_CYCLES-1) ? WRITE : WRITE_DUMMY;
                 WRITE : next_state = write_done ? DONE : WRITE;
                 DONE : next_state = DONE;
                 default: next_state = IDLE;

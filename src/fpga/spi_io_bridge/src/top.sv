@@ -189,6 +189,13 @@ module top
 
     // usb
 
+    logic hid_read;
+    logic hid_keyboard_connected, hid_mouse_connected;
+    logic [7:0] hid_keyboard_modifiers;
+    logic [7:0] hid_keyboard_keycodes [5:0];
+    logic [7:0] hid_mouse_buttons;
+    logic signed [31:0] hid_mouse_x, hid_mouse_y, hid_mouse_wheel;
+
     usb_host usb_host 
     (
         .clk_48m(clk_usb_48m),
@@ -199,20 +206,35 @@ module top
         .usb_dn(usb_host_dn),
 
         .cpu_uart_tx(usb_cpu_uart_tx),
-        .cpu_uart_rx(usb_cpu_uart_rx)
+        .cpu_uart_rx(usb_cpu_uart_rx),
+
+        .hid_read(hid_read),
+        .hid_keyboard_connected(hid_keyboard_connected), .hid_mouse_connected(hid_mouse_connected),
+        .hid_keyboard_modifiers(hid_keyboard_modifiers),
+        .hid_keyboard_keycodes(hid_keyboard_keycodes),
+        .hid_mouse_buttons(hid_mouse_buttons),
+        .hid_mouse_x(hid_mouse_x), .hid_mouse_y(hid_mouse_y), .hid_mouse_wheel(hid_mouse_wheel)
     );
 
     // spi
 
+    wire spi0_d0, spi0_d1, spi0_d2, spi0_d3;
+    wire spi1_d0, spi1_d1, spi1_d2, spi1_d3;
+
+    assign {spi_mosi_d0, spi_miso_d1, spi_d2, spi_d3} = 
+        !spi_cs0 ? {spi0_d0, spi0_d1, spi0_d2, spi0_d3} :
+        !spi_cs1 ? {spi1_d0, spi1_d1, spi1_d2, spi1_d3} :
+        4'bZZZZ;
+
     spi_gpu spi0
     (   
-        .reset(1'b0),
+        .reset(reset),
         .cs(spi_cs0),
         .sclk(spi_sclk),
-        .mosi_d0(spi_mosi_d0),
-        .miso_d1(spi_miso_d1),
-        .d2(spi_d2),
-        .d3(spi_d3),
+        .mosi_d0(spi0_d0),
+        .miso_d1(spi0_d1),
+        .d2(spi0_d2),
+        .d3(spi0_d3),
 
         .framebuffer_rgb_in(framebuffer_rgb_in),
         .framebuffer_rgb_out(framebuffer_rgb_out),
@@ -231,28 +253,35 @@ module top
         .audio_fifo_in(audio_fifo_in),
         .audio_fifo_wnum(audio_fifo_wnum),
         .audio_fifo_full(audio_fifo_full),
-        .audio_fifo_almost_full(audio_fifo_almost_full),
-
-        .test_led_ready(led_ready),
-        .test_led_done(led_done),
-
-        .test_led(test_led)
-    );
-
-    spi_io spi1
-    (   
-        .reset(1'b0),
-        .cs(spi_cs1),
-        .sclk(spi_sclk),
-        .mosi_d0(spi_mosi_d0),
-        .miso_d1(spi_miso_d1),
-        .d2(spi_d2),
-        .d3(spi_d3)
+        .audio_fifo_almost_full(audio_fifo_almost_full)
 
         //.test_led_ready(led_ready),
         //.test_led_done(led_done),
 
         //.test_led(test_led)
+    );
+
+    spi_io spi1
+    (   
+        .reset(reset),
+        .cs(spi_cs1),
+        .sclk(spi_sclk),
+        .mosi_d0(spi1_d0),
+        .miso_d1(spi1_d1),
+        .d2(spi1_d2),
+        .d3(spi1_d3),
+
+        .hid_read(hid_read),
+        .hid_keyboard_connected(hid_keyboard_connected), .hid_mouse_connected(hid_mouse_connected),
+        .hid_keyboard_modifiers(hid_keyboard_modifiers),
+        .hid_keyboard_keycodes(hid_keyboard_keycodes),
+        .hid_mouse_buttons(hid_mouse_buttons),
+        .hid_mouse_x(hid_mouse_x), .hid_mouse_y(hid_mouse_y), .hid_mouse_wheel(hid_mouse_wheel),
+
+        .test_led_ready(led_ready),
+        .test_led_done(led_done),
+
+        .test_led(test_led)
     );
 
 endmodule
