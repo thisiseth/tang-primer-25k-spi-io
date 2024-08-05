@@ -192,7 +192,7 @@ module top
     logic hid_read;
     logic hid_keyboard_connected, hid_mouse_connected;
     logic [7:0] hid_keyboard_modifiers;
-    logic [7:0] hid_keyboard_keycodes [5:0];
+    logic [7:0] hid_keyboard_keycodes [0:5];
     logic [7:0] hid_mouse_buttons;
     logic signed [31:0] hid_mouse_x, hid_mouse_y, hid_mouse_wheel;
 

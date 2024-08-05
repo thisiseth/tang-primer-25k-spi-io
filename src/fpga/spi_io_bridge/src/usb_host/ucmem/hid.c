@@ -191,13 +191,5 @@ static void update_hid_regs(void)
     hid_output[REG_HID_OUTPUT_MOUSE_Y] = reg_mouse_y;
     hid_output[REG_HID_OUTPUT_MOUSE_WHEEL] = reg_mouse_wheel;
 
-    ///////////////////
-    hid_output[REG_HID_OUTPUT_REG_KEYS_1] = 0xF0E0D0D1;
-    hid_output[REG_HID_OUTPUT_REG_KEYS_2] = 0xD2D3D4D5;
-    hid_output[REG_HID_OUTPUT_MOUSE_X] = 0xC0C1C2C3;
-    hid_output[REG_HID_OUTPUT_MOUSE_Y] = 0xB0B1B2B3;
-    hid_output[REG_HID_OUTPUT_MOUSE_WHEEL] = 0xA0A1A2A3;
-////////////////////////
-
     hid_output[REG_HID_OUTPUT_STATUS] = reg_status;
 }

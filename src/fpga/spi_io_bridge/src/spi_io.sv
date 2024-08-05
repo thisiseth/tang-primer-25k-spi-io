@@ -15,7 +15,7 @@ module spi_io
     input logic hid_keyboard_connected, hid_mouse_connected,
 
     input logic [7:0] hid_keyboard_modifiers,
-    input logic [7:0] hid_keyboard_keycodes [5:0],
+    input logic [7:0] hid_keyboard_keycodes [0:5],
 
     input logic [7:0] hid_mouse_buttons,
     input logic signed [31:0] hid_mouse_x,
@@ -33,7 +33,7 @@ module spi_io
 
     typedef enum 
     { //funny values for 4-led presentation
-        IDLE = 0,       //initial state
+        IDLE = 0,        //initial state
         COMMAND = 1,     //reading 8 bits of command code
         READ = 2,        //'receive'
         WRITE_DUMMY = 4, //transmit dummy

@@ -51,7 +51,7 @@ module spi_gpu
 
     typedef enum 
     { //funny values for 4-led presentation
-        IDLE = 0,       //initial state
+        IDLE = 0,        //initial state
         COMMAND = 1,     //reading 8 bits of command code
         READ = 2,        //'receive'
         WRITE_DUMMY = 4, //transmit dummy

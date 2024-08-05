@@ -18,7 +18,7 @@ module usb_host
     output reg hid_keyboard_connected, hid_mouse_connected,
 
     output reg [7:0] hid_keyboard_modifiers,
-    output reg [7:0] hid_keyboard_keycodes [5:0],
+    output reg [7:0] hid_keyboard_keycodes [0:5],
 
     output reg [7:0] hid_mouse_buttons,
     output reg signed [31:0] hid_mouse_x,
@@ -215,11 +215,11 @@ module usb_host
             hid_keyboard_modifiers <= hid_reg_keys1[23:16];
 
             hid_keyboard_keycodes <= '{hid_reg_keys1[15:8], 
-                                   hid_reg_keys1[7:0], 
-                                   hid_reg_keys2[31:24], 
-                                   hid_reg_keys2[23:16], 
-                                   hid_reg_keys2[15:8], 
-                                   hid_reg_keys2[7:0]};
+                                       hid_reg_keys1[7:0], 
+                                       hid_reg_keys2[31:24], 
+                                       hid_reg_keys2[23:16], 
+                                       hid_reg_keys2[15:8], 
+                                       hid_reg_keys2[7:0]};
 
             hid_mouse_buttons <= hid_reg_keys1[31:24];
 

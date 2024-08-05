@@ -9,14 +9,16 @@ SPI_D1 = 7
 SPI_D2 = 16
 SPI_D3 = 18
 
+WRITE_DUMMY = 2
+
 cs0 = Pin(SPI_CS0, mode=Pin.OUT, value=True)
-cs1 = Pin(SPI_CS0, mode=Pin.OUT, value=True)
+cs1 = Pin(SPI_CS1, mode=Pin.OUT, value=True)
 sclk = Pin(SPI_SCLK, mode=Pin.OUT, value=False)
 
 def reset():
     sclk(0)
     cs0(1)
-    cs0(1)
+    cs1(1)
     
 def step(skip):
     if skip:
@@ -39,10 +41,10 @@ def qspi(cs, command, sendData, receiveLength):
     #sclk(1)#
     #sclk(0)#
     
-    d0((command & 0b1000_0000) != 0)
-    d1((command & 0b0100_0000) != 0)
-    d2((command & 0b0010_0000) != 0)
-    d3((command & 0b0001_0000) != 0)
+    d3((command & 0b1000_0000) != 0)
+    d2((command & 0b0100_0000) != 0)
+    d1((command & 0b0010_0000) != 0)
+    d0((command & 0b0001_0000) != 0)
     sclk(1)
     
     if not skipSteps: print(f'command[7:4]: {d0()}{d1()}{d2()}{d3()}')
@@ -50,10 +52,10 @@ def qspi(cs, command, sendData, receiveLength):
     
     sclk(0)
 
-    d0((command & 0b0000_1000) != 0)
-    d1((command & 0b0000_0100) != 0)
-    d2((command & 0b0000_0010) != 0)
-    d3((command & 0b0000_0001) != 0)
+    d3((command & 0b0000_1000) != 0)
+    d2((command & 0b0000_0100) != 0)
+    d1((command & 0b0000_0010) != 0)
+    d0((command & 0b0000_0001) != 0)
     sclk(1)
     
     if not skipSteps: print(f'command[3:0]: {d0()}{d1()}{d2()}{d3()}')
@@ -65,10 +67,10 @@ def qspi(cs, command, sendData, receiveLength):
         if not skipSteps: print('<output edge>')
         skipSteps = step(skipSteps)
         
-        d0((sendByte & 0b1000_0000) != 0)
-        d1((sendByte & 0b0100_0000) != 0)
-        d2((sendByte & 0b0010_0000) != 0)
-        d3((sendByte & 0b0001_0000) != 0)
+        d3((sendByte & 0b1000_0000) != 0)
+        d2((sendByte & 0b0100_0000) != 0)
+        d1((sendByte & 0b0010_0000) != 0)
+        d0((sendByte & 0b0001_0000) != 0)
         sclk(1)
         
         if not skipSteps: print(f'send[7:4]: {d0()}{d1()}{d2()}{d3()}')
@@ -79,10 +81,10 @@ def qspi(cs, command, sendData, receiveLength):
         if not skipSteps: print('<output edge>')
         skipSteps = step(skipSteps)
 
-        d0((sendByte & 0b0000_1000) != 0)
-        d1((sendByte & 0b0000_0100) != 0)
-        d2((sendByte & 0b0000_0010) != 0)
-        d3((sendByte & 0b0000_0001) != 0)
+        d3((sendByte & 0b0000_1000) != 0)
+        d2((sendByte & 0b0000_0100) != 0)
+        d1((sendByte & 0b0000_0010) != 0)
+        d0((sendByte & 0b0000_0001) != 0)
         sclk(1)
         
         if not skipSteps: print(f'send[3:0]: {d0()}{d1()}{d2()}{d3()}')
@@ -94,6 +96,13 @@ def qspi(cs, command, sendData, receiveLength):
     d3 = Pin(SPI_D3, mode=Pin.IN)
     
     sclk(0)
+    
+    dummy = WRITE_DUMMY
+    
+    while dummy > 0:
+        sclk(1)
+        sclk(0)
+        dummy = dummy - 1
     
     if not skipSteps: print('output edge')
     
@@ -107,27 +116,27 @@ def qspi(cs, command, sendData, receiveLength):
         #    print(i)
         #    input()
         
-        skipSteps = step(skipSteps)
+        #skipSteps = step(skipSteps)
         
         sclk(1)
-        currentByte |= d0() << 7;
-        currentByte |= d1() << 6;
-        currentByte |= d2() << 5;
-        currentByte |= d3() << 4;
+        currentByte |= d3() << 7;
+        currentByte |= d2() << 6;
+        currentByte |= d1() << 5;
+        currentByte |= d0() << 4;
         
-        if not skipSteps: print(f'receive[3:0]: {d0()}{d1()}{d2()}{d3()}')
+        #if not skipSteps: print(f'receive[3:0]: {d0()}{d1()}{d2()}{d3()}')
         
         sclk(0)
         
         skipSteps = step(skipSteps)
         
         sclk(1)
-        currentByte |= d0() << 3;
-        currentByte |= d1() << 2;
-        currentByte |= d2() << 1;
-        currentByte |= d3();
+        currentByte |= d3() << 3;
+        currentByte |= d2() << 2;
+        currentByte |= d1() << 1;
+        currentByte |= d0();
         
-        if not skipSteps: print(f'receive[3:0]: {d0()}{d1()}{d2()}{d3()}')
+        #if not skipSteps: print(f'receive[3:0]: {d0()}{d1()}{d2()}{d3()}')
         if not skipSteps: print(f'read: {currentByte:#010b}')
         
         sclk(0)
@@ -137,96 +146,4 @@ def qspi(cs, command, sendData, receiveLength):
     cs(1)
     
     return ret
-    
-pal = []
-frame = []
 
-for abc in range(300):
-    pal += [abc, abc, abc]
-    
-for abc in range(40000):
-    frame += [(abc//25)%256]
-    
-pal[0] = 0;
-pal[1] = 250;
-pal[2] = 0;
-pal[765] = 250;
-pal[766] = 0;
-pal[767] = 250;
-
-def write_frame(x, y):
-    reset()
-    
-    pixel_idx = x+y*320
-    
-    qspi(cs0, 0b1000_0010, [(pixel_idx >> 12) & 0xFF, (pixel_idx >> 4) & 0xFF, (pixel_idx & 0xF) << 4]+frame, 0)
-    
-    
-def write_line(y, color):
-    reset()
-    
-    pixel_idx = y*320
-    
-    line = []
-    
-    for abc in range(320):
-        line += [color]
-    
-    qspi(cs0, 0b1000_0010, [(pixel_idx >> 12) & 0xFF, (pixel_idx >> 4) & 0xFF, (pixel_idx & 0xF) << 4]+line, 0)
-    
-def write_line2(y, color):
-    reset()
-    
-    pixel_idx = y*320
-    
-    line = []
-    
-    for abc in range(320):
-        line += [color]
-        
-    line[0] = 0;
-    line[319] = 255;
-    
-    qspi(cs0, 0b1000_0010, [(pixel_idx >> 12) & 0xFF, (pixel_idx >> 4) & 0xFF, (pixel_idx & 0xF) << 4]+line, 0)
-    
-def write_gradient(x, y):
-    reset()
-    
-    pixel_idx = x+y*320
-    
-    line = []
-    
-    for abc in range(256):
-        line += [abc]
-    
-    qspi(cs0, 0b1000_0010, [(pixel_idx >> 12) & 0xFF, (pixel_idx >> 4) & 0xFF, (pixel_idx & 0xF) << 4]+line, 0)   
-    
-def loopa():
-    global globalSkipSteps
-    
-    globalSkipSteps = True
-    cur_color = 50;
-    
-    for cur_y in range(240):
-        write_line(cur_y, cur_color)
-        cur_color = 0 if cur_color == 255 else (cur_color + 1)
-         
-    globalSkipSteps = False
-    
-def poopa():
-    global globalSkipSteps
-    
-    globalSkipSteps = True
-    
-    reset()
-    qspi(cs0, 0b1000_0011, pal, 0)
-    
-    loopa()
-    globalSkipSteps = True
-    
-    write_line2(0, 60)
-    write_line(20, 50)
-    write_gradient(5, 5)
-    write_gradient(20, 103)
-    
-    globalSkipSteps = False
