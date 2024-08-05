@@ -5,10 +5,10 @@ module spi_gpu
     input logic cs, 
     
     input logic sclk,
-    inout wire mosi_d0,
-    inout wire miso_d1,
-    inout wire d2,
-    inout wire d3,
+    inout logic mosi_d0,
+    inout logic miso_d1,
+    inout logic d2,
+    inout logic d3,
 
     output logic [7:0] framebuffer_rgb_in,
     input logic [7:0] framebuffer_rgb_out,

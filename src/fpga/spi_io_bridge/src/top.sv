@@ -218,23 +218,15 @@ module top
 
     // spi
 
-    wire spi0_d0, spi0_d1, spi0_d2, spi0_d3;
-    wire spi1_d0, spi1_d1, spi1_d2, spi1_d3;
-
-    assign {spi_mosi_d0, spi_miso_d1, spi_d2, spi_d3} = 
-        !spi_cs0 ? {spi0_d0, spi0_d1, spi0_d2, spi0_d3} :
-        !spi_cs1 ? {spi1_d0, spi1_d1, spi1_d2, spi1_d3} :
-        4'bZZZZ;
-
     spi_gpu spi0
     (   
         .reset(reset),
         .cs(spi_cs0),
         .sclk(spi_sclk),
-        .mosi_d0(spi0_d0),
-        .miso_d1(spi0_d1),
-        .d2(spi0_d2),
-        .d3(spi0_d3),
+        .mosi_d0(spi_mosi_d0),
+        .miso_d1(spi_miso_d1),
+        .d2(spi_d2),
+        .d3(spi_d3),
 
         .framebuffer_rgb_in(framebuffer_rgb_in),
         .framebuffer_rgb_out(framebuffer_rgb_out),
@@ -266,10 +258,10 @@ module top
         .reset(reset),
         .cs(spi_cs1),
         .sclk(spi_sclk),
-        .mosi_d0(spi1_d0),
-        .miso_d1(spi1_d1),
-        .d2(spi1_d2),
-        .d3(spi1_d3),
+        .mosi_d0(spi_mosi_d0),
+        .miso_d1(spi_miso_d1),
+        .d2(spi_d2),
+        .d3(spi_d3),
 
         .hid_read(hid_read),
         .hid_keyboard_connected(hid_keyboard_connected), .hid_mouse_connected(hid_mouse_connected),
