@@ -272,7 +272,7 @@ static void IRAM_ATTR driver_task_function_main(void *arg)
             if (buffer_to_present >= 0)
             {   
                 FPGA_DRIVER_ERROR_CHECK(fpga_api_gpu_set_palette(&qspi, buffer_to_present ? palette1 : palette0));
-                FPGA_DRIVER_ERROR_CHECK(fpga_api_gpu_framebuffer_write(&qspi, 0, buffer_to_present ? framebuffer0 : framebuffer1, FPGA_DRIVER_FRAMEBUFFER_SIZE_BYTES));
+                FPGA_DRIVER_ERROR_CHECK(fpga_api_gpu_framebuffer_write(&qspi, 0, buffer_to_present ? framebuffer1 : framebuffer0, FPGA_DRIVER_FRAMEBUFFER_SIZE_BYTES));
                 
                 taskENTER_CRITICAL(&driver_spinlock);
 

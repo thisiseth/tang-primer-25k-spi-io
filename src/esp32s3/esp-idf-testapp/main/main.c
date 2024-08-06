@@ -14,7 +14,8 @@
 #include "fpga_driver.h"
 #include "pmod_board.h"
 
-#define PIXEL_IDX(x, y) ((x) + (y)*320)
+#define PIXEL_IDX(x, y) ((x) + (y)*FPGA_DRIVER_FRAME_WIDTH)
+#define PIXEL_INBOUNDS(x, y) ((x) >= 0 && (x) < FPGA_DRIVER_FRAME_WIDTH && (y) >= 0 && (y) < FPGA_DRIVER_FRAME_HEIGHT)
 
 int audio_saw;
 
@@ -91,6 +92,14 @@ void user_task(void *arg)
 
     fpga_driver_register_audio_requested_cb(audio_requested_callback);
 
+    hid_status_t hid_status;
+
+    fpga_driver_hid_get_status(&hid_status);
+
+    int zero_x = hid_status.mouseX - FPGA_DRIVER_FRAME_WIDTH/2, 
+        zero_y = hid_status.mouseY - FPGA_DRIVER_FRAME_HEIGHT/2, 
+        zero_wheel = hid_status.mouseWheel;
+
     for (;;)
     {
         taskYIELD();
@@ -113,9 +122,20 @@ void user_task(void *arg)
             framebuffer[i] = i % 320 + temp1;
         }
 
+        int cur_x = hid_status.mouseX - zero_x, 
+            cur_y = hid_status.mouseY - zero_y,
+            cur_wheel = hid_status.mouseWheel - zero_wheel;
+
+        for (int i = -1; i <= 1; ++i)
+            for (int j = -1; j <= 1; ++j)
+                if (PIXEL_INBOUNDS(cur_x + i, cur_y + j))
+                    framebuffer[PIXEL_IDX(cur_x + i, cur_y + j)] = (!i & !j) ? 255 : 0;
+
         ++temp1;
 
-        fpga_driver_present_frame(&palette, &framebuffer, FPGA_DRIVER_VSYNC_DONT_WAIT_OVERWRITE_PREVIOUS);
+        //fpga_driver_present_frame(&palette, &framebuffer, FPGA_DRIVER_VSYNC_DONT_WAIT_OVERWRITE_PREVIOUS);
+        fpga_driver_present_frame(&palette, &framebuffer, FPGA_DRIVER_VSYNC_WAIT_IF_PREVIOUS_NOT_PRESENTED);
+        fpga_driver_hid_get_status(&hid_status);
     }
 }
 
