@@ -1,0 +1,15 @@
+#pragma once
+
+#define PMOD_FPGA_SPI_CS0 41
+#define PMOD_FPGA_SPI_CS1 39
+#define PMOD_FPGA_SPI_SCLK 2
+
+#define PMOD_FPGA_SPI_D0 5
+#define PMOD_FPGA_SPI_D1 7
+#define PMOD_FPGA_SPI_D2 16
+#define PMOD_FPGA_SPI_D3 18
+
+#define PMOD_BUTTON 0
+
+#define PMOD_LED_GREEN 37
+#define PMOD_LED_PINK 35
