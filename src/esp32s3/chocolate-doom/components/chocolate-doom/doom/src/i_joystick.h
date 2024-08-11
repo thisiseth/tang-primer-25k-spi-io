@@ -19,7 +19,11 @@
 #ifndef __I_JOYSTICK__
 #define __I_JOYSTICK__
 
+#ifndef ESP32_DOOM
 #include "SDL_gamecontroller.h"
+#else
+#define SDL_CONTROLLER_BUTTON_MAX 0
+#endif
 
 // Number of "virtual" joystick buttons defined in configuration files.
 // This needs to be at least as large as the number of different key

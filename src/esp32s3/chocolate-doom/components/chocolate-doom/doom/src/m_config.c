@@ -26,7 +26,11 @@
 #include <assert.h>
 #include <locale.h>
 
-#include "SDL_filesystem.h"
+#ifndef ESP32_DOOM
+    #include "SDL_filesystem.h"
+#else
+    #define PACKAGE_TARNAME "abc"
+#endif
 
 #include "config.h"
 

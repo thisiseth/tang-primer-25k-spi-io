@@ -18,7 +18,9 @@
 
 #include <stdio.h>
 
-#include "SDL.h"
+#ifndef ESP32_DOOM
+    #include "SDL.h"
+#endif
 
 #include "doomtype.h"
 

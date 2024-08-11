@@ -30,7 +30,15 @@
 #include <unistd.h>
 #endif
 
-#include "SDL.h"
+#ifndef ESP32_DOOM
+    #include "SDL.h"
+#else
+    #define PACKAGE_NAME "abc"
+    #define PACKAGE_STRIN "abc"
+    #define SDL_Quit() ((void)0)
+    #define SDL_ShowSimpleMessageBox(a, b, c, d) (printf("%s %s %s\n", a, b, c))
+    #define SDL_MESSAGEBOX_ERROR "error"
+#endif
 
 #include "config.h"
 

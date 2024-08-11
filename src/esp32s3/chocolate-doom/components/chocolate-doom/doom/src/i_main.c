@@ -22,7 +22,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "SDL.h"
+#ifndef ESP32_DOOM
+    #include "SDL.h"
+#endif
 
 #include "doomtype.h"
 #include "i_system.h"
@@ -37,6 +39,41 @@
 //
 
 void D_DoomMain (void);
+
+#ifdef ESP32_DOOM
+
+int main(int argc, char **argv)
+{
+    // save arguments
+
+    myargc = argc;
+    myargv = malloc(argc * sizeof(char *));
+    assert(myargv != NULL);
+
+    for (int i = 0; i < argc; i++)
+    {
+        myargv[i] = M_StringDuplicate(argv[i]);
+    }
+
+    //!
+    // Print the program version and exit.
+    //
+    if (M_ParmExists("-version") || M_ParmExists("--version")) {
+        puts("123");
+        exit(0);
+    }
+
+    M_FindResponseFile();
+    M_SetExeDir();
+
+    // start doom
+
+    D_DoomMain ();
+
+    return 0;
+}
+
+#else
 
 int main(int argc, char **argv)
 {
@@ -79,3 +116,4 @@ int main(int argc, char **argv)
     return 0;
 }
 
+#endif

@@ -28,6 +28,21 @@
 extern  int	myargc;
 extern  char**	myargv;
 
+#ifdef ESP32_DOOM
+
+static inline int M_CheckParm(const char *check) {
+    return 0;
+}
+static inline int M_CheckParmWithArgs(const char *check, int num_args) {
+    return 0;
+}
+static inline boolean M_ParmExists(const char *check)
+{
+    return M_CheckParm(check) != 0;
+}
+
+#else
+
 extern char *exedir;
 void M_SetExeDir(void);
 
@@ -50,4 +65,5 @@ boolean M_ParmExists(const char *check);
 
 const char *M_GetExecutableName(void);
 
+#endif
 #endif

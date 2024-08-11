@@ -1,7 +1,7 @@
 if(ESP32_DOOM)
 
     foreach(SUBDIR doom)
-    add_subdirectory("${SUBDIR}")
+        add_subdirectory("${SUBDIR}")
     endforeach()
 
     set(COMMON_SOURCE_FILES
@@ -26,39 +26,39 @@ if(ESP32_DOOM)
         i_flmusic.c
         i_glob.c            i_glob.h
         i_input.c           i_input.h
-        i_joystick.c        i_joystick.h
+        i_joystick.h        #i_joystick.c        
                             i_swap.h
         i_musicpack.c
         i_oplmusic.c
-        i_pcsound.c
-        i_sdlmusic.c
-        i_sdlsound.c
+        #i_pcsound.c
+        #i_sdlmusic.c
+        #i_sdlsound.c
         i_sound.c           i_sound.h
-        i_timer.c           i_timer.h
+        i_timer.h           i_timer.c
         i_video.c           i_video.h
-        i_videohr.c         i_videohr.h
-        i_winmusic.c
-        midifallback.c      midifallback.h
-        midifile.c          midifile.h
-        mus2mid.c           mus2mid.h
+        #i_videohr.c         i_videohr.h
+        #i_winmusic.c
+        #midifallback.c      midifallback.h
+        #midifile.c          midifile.h
+        #mus2mid.c           mus2mid.h
         m_bbox.c            m_bbox.h
         m_cheat.c           m_cheat.h
         m_config.c          m_config.h
         m_controls.c        m_controls.h
         m_fixed.c           m_fixed.h
-        net_client.c        net_client.h
-        net_common.c        net_common.h
-        net_dedicated.c     net_dedicated.h
-        net_defs.h
-        net_gui.c           net_gui.h
-        net_io.c            net_io.h
-        net_loop.c          net_loop.h
-        net_packet.c        net_packet.h
-        net_petname.c       net_petname.h
-        net_query.c         net_query.h
-        net_sdl.c           net_sdl.h
-        net_server.c        net_server.h
-        net_structrw.c      net_structrw.h
+        #net_client.c        net_client.h
+        #net_common.c        net_common.h
+        #net_dedicated.c     net_dedicated.h
+        #net_defs.h
+        #net_gui.c           net_gui.h
+        #net_io.c            net_io.h
+        #net_loop.c          net_loop.h
+        #net_packet.c        net_packet.h
+        #net_petname.c       net_petname.h
+        #net_query.c         net_query.h
+        #net_sdl.c           net_sdl.h
+        #net_server.c        net_server.h
+        #net_structrw.c      net_structrw.h
         sha1.c              sha1.h
         memio.c             memio.h
         tables.c            tables.h
@@ -85,7 +85,7 @@ if(ESP32_DOOM)
     set(SOURCE_FILES ${COMMON_SOURCE_FILES} ${GAME_SOURCE_FILES})
     set(SOURCE_FILES_WITH_DEH ${SOURCE_FILES} ${DEHACKED_SOURCE_FILES})
 
-    set(EXTRA_LIBS textscreen opl)
+    set(EXTRA_LIBS textscreen opl idf::freertos idf::esp_timer)
 
     if(ENABLE_SDL2_MIXER)
         list(APPEND EXTRA_LIBS SDL2_mixer::SDL2_mixer)
@@ -102,16 +102,15 @@ if(ESP32_DOOM)
     if(FluidSynth_FOUND)
         list(APPEND EXTRA_LIBS FluidSynth::libfluidsynth)
     endif()
-    if(WIN32)
-        list(APPEND EXTRA_LIBS winmm)
-    endif()
+
+    set(GAME_INCLUDE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/../")
 
     add_library("${PROGRAM_PREFIX}doom" STATIC ${SOURCE_FILES_WITH_DEH})
-
+    
     target_include_directories("${PROGRAM_PREFIX}doom" PRIVATE ${GAME_INCLUDE_DIRS})
     target_link_libraries("${PROGRAM_PREFIX}doom" doom ${EXTRA_LIBS})
 
-else() #not esp32
+else() #not esp32_doom
 
     foreach(SUBDIR doom heretic hexen strife setup)
         add_subdirectory("${SUBDIR}")
@@ -180,7 +179,7 @@ else() #not esp32
         i_sound.c           i_sound.h
         i_timer.c           i_timer.h
         i_video.c           i_video.h
-        i_videohr.c         i_videohr.h
+        #i_videohr.c         i_videohr.h
         i_winmusic.c
         midifallback.c      midifallback.h
         midifile.c          midifile.h

@@ -22,6 +22,8 @@
 #include "doomtype.h"
 #include "i_video.h"
 
+#ifndef ESP32_DOOM
+
 #include "txt_main.h"
 
 #define ENDOOM_W 80
@@ -77,3 +79,10 @@ void I_Endoom(byte *endoom_data)
     TXT_Shutdown();
 }
 
+#else
+
+void I_Endoom(byte *endoom_data)
+{ 
+}
+
+#endif

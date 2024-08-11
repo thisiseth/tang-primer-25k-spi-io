@@ -21,7 +21,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "SDL_stdinc.h"
 
 #include "doomtype.h"
 #include "d_iwad.h"
@@ -32,8 +31,9 @@
 int		myargc;
 char**		myargv;
 
+#ifndef ESP32_DOOM
 
-
+#include "SDL_stdinc.h"
 
 //
 // M_CheckParm
@@ -554,3 +554,5 @@ void M_SetExeDir(void)
     exedir = M_StringJoin(dirname, DIR_SEPARATOR_S, NULL);
     free(dirname);
 }
+
+#endif

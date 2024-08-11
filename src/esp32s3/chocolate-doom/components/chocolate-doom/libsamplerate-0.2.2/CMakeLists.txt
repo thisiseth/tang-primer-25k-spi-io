@@ -119,7 +119,7 @@ add_subdirectory(src)
 # Tests
 
 # BUILD_TESTING is declared by CTest module and is ON by default
-if(BUILD_TESTING)
+if(BUILD_TESTING AND NOT ESP32_DOOM)
   add_subdirectory(tests)
 endif()
 

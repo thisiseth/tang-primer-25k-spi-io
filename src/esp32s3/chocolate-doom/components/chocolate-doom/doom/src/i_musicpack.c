@@ -22,7 +22,9 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "SDL.h"
+#ifndef ESP32_DOOM
+    #include "SDL.h"
+#endif
 
 #include "i_glob.h"
 

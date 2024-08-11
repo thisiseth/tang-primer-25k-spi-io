@@ -20,7 +20,17 @@
 #ifndef __I_SWAP__
 #define __I_SWAP__
 
-#include "SDL_endian.h"
+#ifndef ESP32_DOOM
+    #include "SDL_endian.h"
+#else
+    #define SDL_SwapLE16(x) (x)
+    #define SDL_SwapLE32(x) (x)
+    #define SDL_SwapBE16(x) __builtin_bswap16(x)
+    #define SDL_SwapBE32(x) __builtin_bswap32(x)
+    #define SDL_BYTEORDER 0
+    #define SDL_LITTLE_ENDIAN 0
+    #define SDL_BIG_ENDIAN 1
+#endif
 
 // Endianess handling.
 // WAD files are stored little endian.

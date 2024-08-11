@@ -25,9 +25,4 @@ add_library(textscreen STATIC
 target_include_directories(textscreen
                            INTERFACE "."
                            PRIVATE "../src/")
-
-if (NOT ESP32_DOOM)
-    target_link_libraries(textscreen m SDL2::SDL2)
-else()
-    target_link_libraries(textscreen m)
-endif()
+target_link_libraries(textscreen m SDL2::SDL2)

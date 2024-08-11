@@ -31,8 +31,6 @@
 
 #define SCREENHEIGHT_4_3 240
 
-typedef boolean (*grabmouse_callback_t)(void);
-
 // Called by D_DoomMain,
 // determines the hardware configuration
 // and sets up the video mode
@@ -53,17 +51,8 @@ void I_ReadScreen (pixel_t* scr);
 
 void I_BeginRead (void);
 
-void I_SetWindowTitle(const char *title);
-
-void I_CheckIsScreensaver(void);
-void I_SetGrabMouseCallback(grabmouse_callback_t func);
-
 void I_DisplayFPSDots(boolean dots_on);
 void I_BindVideoVariables(void);
-
-void I_InitWindowTitle(void);
-void I_RegisterWindowIcon(const unsigned int *icon, int width, int height);
-void I_InitWindowIcon(void);
 
 // Called before processing any tics in a frame (just after displaying a frame).
 // Time consuming syncronous operations are performed here (joystick reading).
@@ -79,31 +68,44 @@ void I_StartTic (void);
 
 void I_EnableLoadingDisk(int xoffs, int yoffs);
 
-extern char *video_driver;
-extern boolean screenvisible;
-
 extern int vanilla_keyboard_mapping;
-extern boolean screensaver_mode;
 extern int usegamma;
 extern pixel_t *I_VideoBuffer;
 
 extern int screen_width;
 extern int screen_height;
-extern int fullscreen;
 extern int aspect_ratio_correct;
-extern int integer_scaling;
 extern int vga_porch_flash;
-extern int force_software_renderer;
-
-extern int png_screenshots;
-
-extern char *window_position;
-void I_GetWindowPosition(int *x, int *y, int w, int h);
 
 // Joystic/gamepad hysteresis
 extern unsigned int joywait;
 
 extern int usemouse;
 
+#ifndef ESP32_DOOM
+typedef boolean (*grabmouse_callback_t)(void);
+
+void I_SetGrabMouseCallback(grabmouse_callback_t func);
+
+void I_SetWindowTitle(const char *title);
+
+void I_CheckIsScreensaver(void);
+
+void I_InitWindowTitle(void);
+void I_RegisterWindowIcon(const unsigned int *icon, int width, int height);
+void I_InitWindowIcon(void);
+
+extern char *video_driver;
+extern boolean screenvisible;
+extern boolean screensaver_mode;
+extern int fullscreen;
+extern int integer_scaling;
+extern int force_software_renderer;
+
+extern int png_screenshots;
+
+extern char *window_position;
+void I_GetWindowPosition(int *x, int *y, int w, int h);
+#endif
 
 #endif
