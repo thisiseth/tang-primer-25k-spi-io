@@ -66,6 +66,35 @@ void audio_requested_callback(uint32_t *buffer, int *sampleCount, int maxSampleC
     *sampleCount = maxSampleCount;
 }
 
+void hid_event_callback(fpga_driver_hid_event_t hidEvent)
+{
+    switch (hidEvent.type)
+    {
+        case FPGA_DRIVER_HID_EVENT_KEY_DOWN:
+            printf("key_down: %d modifiers %d\n", hidEvent.keyEvent.keyCode, hidEvent.keyEvent.modifiers);
+            break;
+        case FPGA_DRIVER_HID_EVENT_KEY_UP:
+            printf("key_up: %d modifiers %d\n", hidEvent.keyEvent.keyCode, hidEvent.keyEvent.modifiers);
+            break;
+        case FPGA_DRIVER_HID_EVENT_MOUSE_MOVE:
+            printf("mouse_move: x:%ld y:%ld w:%ld buttons %d\n", 
+                hidEvent.mouseMoveEvent.moveX, 
+                hidEvent.mouseMoveEvent.moveY, 
+                hidEvent.mouseMoveEvent.moveWheel, 
+                hidEvent.mouseMoveEvent.pressedButtons);
+            break;
+        case FPGA_DRIVER_HID_EVENT_MOUSE_BUTTON_DOWN:
+            printf("mouse_button_down: %d\n", hidEvent.mouseButtonEvent.buttonCode);
+            break;
+        case FPGA_DRIVER_HID_EVENT_MOUSE_BUTTON_UP:
+            printf("mouse_button_up: %d\n", hidEvent.mouseButtonEvent.buttonCode);
+            break;
+        default:
+            printf("unknown hid event type %d", hidEvent.type);
+            break;
+    }
+}
+
 void user_task(void *arg)
 {
     uint8_t *palette, *framebuffer;
@@ -91,8 +120,9 @@ void user_task(void *arg)
     int temp1 = 0;
 
     fpga_driver_register_audio_requested_cb(audio_requested_callback);
+    fpga_driver_register_hid_event_cb(hid_event_callback);
 
-    hid_status_t hid_status;
+    fpga_driver_hid_status_t hid_status;
 
     fpga_driver_hid_get_status(&hid_status);
 
@@ -108,7 +138,7 @@ void user_task(void *arg)
 
         if (new_time - time >= 1000000)
         {
-            printf("FPS: %d\n", fps);
+            //printf("FPS: %d\n", fps);
             fps = 0;
             time = new_time;
         }

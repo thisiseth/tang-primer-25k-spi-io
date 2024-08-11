@@ -7,6 +7,7 @@
 #include "fpga_api_gpu.h"
 #include "fpga_api_io.h"
 #include "fpga_qspi.h"
+#include <string.h>
 
 static const char TAG[] = "fpga_driver";
 
@@ -27,44 +28,60 @@ static const char TAG[] = "fpga_driver";
 
 #define FPGA_DRIVER_MAIN_TASK_TICK_US       500
 
-#define FPGA_DRIVER_AUDIO_TASK_PRIORITY     10
+#define FPGA_DRIVER_AUDIO_TASK_PRIORITY     11
 #define FPGA_DRIVER_AUDIO_TASK_STACKSIZE    4 * 1024
 #define FPGA_DRIVER_AUDIO_TASK_NAME         "fpga_drv_audio"
 #define FPGA_DRIVER_AUDIO_TASK_PINNED_CORE  0
 
-static volatile bool init = false;
+#define FPGA_DRIVER_HID_TASK_PRIORITY       10
+#define FPGA_DRIVER_HID_TASK_STACKSIZE      4 * 1024
+#define FPGA_DRIVER_HID_TASK_NAME           "fpga_drv_hid"
+#define FPGA_DRIVER_HID_TASK_PINNED_CORE    0
+
+#define FPGA_DRIVER_HID_KEY_IS_ERROR(code)  ((code) >= 1 && (code) <= 3)
+
+static bool init = false;
 
 static fpga_qspi_t qspi;
 static gptimer_handle_t driver_timer = NULL;
 static TaskHandle_t driver_main_task = NULL;
 static TaskHandle_t driver_audio_task = NULL;
+static TaskHandle_t driver_hid_task = NULL;
 
 static portMUX_TYPE driver_spinlock = portMUX_INITIALIZER_UNLOCKED;
 
-static volatile uint32_t fpga_connected = 0;
+static uint32_t fpga_connected = 0;
 
-static volatile int32_t framebuffer_idx_to_present = -1;
-static volatile bool present_in_progress = false;
+//video
+
+static int32_t framebuffer_idx_to_present = -1;
+static bool present_in_progress = false;
 
 static DMA_ATTR uint8_t palette0[FPGA_DRIVER_PALETTE_SIZE_BYTES];
 static DMA_ATTR uint8_t palette1[FPGA_DRIVER_PALETTE_SIZE_BYTES];
 static DMA_ATTR uint8_t framebuffer0[FPGA_DRIVER_FRAMEBUFFER_SIZE_BYTES];
 static DMA_ATTR uint8_t framebuffer1[FPGA_DRIVER_FRAMEBUFFER_SIZE_BYTES];
 
-static volatile bool audio_send_in_progress = false;
+//audio
 
-static volatile uint32_t audio_hdmi_fifo_wnum = 0;
+static bool audio_send_in_progress = false;
+
+static uint32_t audio_hdmi_fifo_wnum = 0;
 
 static DMA_ATTR uint8_t next_audio_buffer[FPGA_DRIVER_AUDIO_BUFFER_WRITE_MAX_BYTES];
-static volatile uint32_t next_audio_buffer_ready_samples = 0;
+static uint32_t next_audio_buffer_ready_samples = 0;
 
-static volatile fpga_driver_audio_requested_cb_t audio_requested_callback = NULL;
+static fpga_driver_audio_requested_cb_t audio_requested_callback = NULL;
 
-static hid_status_t hid_status;
+//hid
 
-static bool driver_timer_tick(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx);
+static fpga_driver_hid_status_t previous_hid_status, current_hid_status;
+static fpga_driver_hid_event_cb_t hid_event_callback = NULL;
+
+static bool driver_timer_tick(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *userCtx);
 static void driver_task_function_main(void *arg);
 static void driver_task_function_audio(void *arg);
+static void driver_task_function_hid(void *arg);
 
 bool fpga_driver_init(fpga_driver_config_t *config)
 {
@@ -124,6 +141,15 @@ bool fpga_driver_init(fpga_driver_config_t *config)
                                 FPGA_DRIVER_AUDIO_TASK_PRIORITY, 
                                 &driver_audio_task, 
                                 FPGA_DRIVER_AUDIO_TASK_PINNED_CORE) != pdPASS)
+        return false;
+
+    if (xTaskCreatePinnedToCore(driver_task_function_hid, 
+                                FPGA_DRIVER_HID_TASK_NAME, 
+                                FPGA_DRIVER_HID_TASK_STACKSIZE, 
+                                NULL, 
+                                FPGA_DRIVER_HID_TASK_PRIORITY, 
+                                &driver_hid_task, 
+                                FPGA_DRIVER_HID_TASK_PINNED_CORE) != pdPASS)
         return false;
 
     ESP_LOGI(TAG, "fpga driver init successful");
@@ -209,16 +235,25 @@ void fpga_driver_register_audio_requested_cb(fpga_driver_audio_requested_cb_t ca
     taskEXIT_CRITICAL(&driver_spinlock);
 }
 
-void fpga_driver_hid_get_status(hid_status_t *status)
+void fpga_driver_hid_get_status(fpga_driver_hid_status_t *status)
 {
     taskENTER_CRITICAL(&driver_spinlock);
 
-    *status = hid_status;
+    *status = current_hid_status;
 
     taskEXIT_CRITICAL(&driver_spinlock);
 }
 
-static bool IRAM_ATTR driver_timer_tick(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx)
+void fpga_driver_register_hid_event_cb(fpga_driver_hid_event_cb_t callback)
+{
+    taskENTER_CRITICAL(&driver_spinlock);
+
+    hid_event_callback = callback;
+
+    taskEXIT_CRITICAL(&driver_spinlock);
+}
+
+static bool IRAM_ATTR driver_timer_tick(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *userCtx)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     
@@ -324,14 +359,15 @@ static void IRAM_ATTR driver_task_function_main(void *arg)
 
         if (pollHid)
         {
-            //WORD_ALIGNED_ATTR uint8_t hid_status_buffer[6*4];
-static DMA_ATTR uint8_t hid_status_buffer[6*4];
+            WORD_ALIGNED_ATTR uint8_t hid_status_buffer[6*4];
 
             FPGA_DRIVER_ERROR_CHECK(fpga_api_io_hid_get_status(&qspi, hid_status_buffer));
 
             taskENTER_CRITICAL(&driver_spinlock);
 
-            hid_status = (hid_status_t)
+            fpga_driver_hid_status_t previous_current = current_hid_status;
+
+            current_hid_status = (fpga_driver_hid_status_t)
             {
                 .mouseKeys = hid_status_buffer[4],
                 .keyboardModifiers = hid_status_buffer[5],
@@ -350,6 +386,9 @@ static DMA_ATTR uint8_t hid_status_buffer[6*4];
             };
 
             taskEXIT_CRITICAL(&driver_spinlock);
+
+            if (memcmp(&previous_current, &current_hid_status, sizeof(fpga_driver_hid_status_t)))
+                xTaskNotifyGive(driver_hid_task);
         }
 
         pollHid = !pollHid; //every second tick - no hid device works at 2000hz...
@@ -400,5 +439,142 @@ static void IRAM_ATTR driver_task_function_audio(void *arg)
         next_audio_buffer_ready_samples = generatedSampleCount;
         
         taskEXIT_CRITICAL(&driver_spinlock);
+    }
+}
+
+static inline void driver_helper_hid_map_keys(const uint8_t oldKeys[6], const uint8_t newKeys[6], uint8_t unmappedNewKeys[6], int *unmappedNewKeysCount)
+{
+    *unmappedNewKeysCount = 0;
+
+    for (int i = 0; i < 6; ++i)
+    {
+        if (newKeys[i] == 0)
+            continue;
+
+        bool keyFound = false;
+
+        for (int j = 0; j < 6; ++j)
+        {
+            if (newKeys[i] != oldKeys[j])
+                continue;
+
+            keyFound = true;
+            break;
+        }
+
+        if (keyFound)
+            continue;
+
+        unmappedNewKeys[*unmappedNewKeysCount] = newKeys[i];
+        ++(*unmappedNewKeysCount);
+    }
+}
+
+static void IRAM_ATTR driver_task_function_hid(void *arg)
+{
+    ESP_LOGI(TAG, "fpga driver hid task started");
+
+    for (;;)
+    {
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+        taskENTER_CRITICAL(&driver_spinlock);
+
+        fpga_driver_hid_event_cb_t callback = hid_event_callback;
+        fpga_driver_hid_status_t currentStatus = current_hid_status;
+
+        taskEXIT_CRITICAL(&driver_spinlock);
+
+        if (!memcmp(&currentStatus, &previous_hid_status, sizeof(fpga_driver_hid_status_t)))
+            continue;
+
+        if (callback != NULL)
+        {
+            fpga_driver_hid_event_t event;
+
+            //key events
+
+            event.keyEvent.modifiers = currentStatus.keyboardModifiers; //whatever
+
+            if (currentStatus.keyboardModifiers != previous_hid_status.keyboardModifiers)
+                for (int i = 1; i < 256; i <<= 1)
+                {
+                    if ((currentStatus.keyboardModifiers & i) == (previous_hid_status.keyboardModifiers & i))
+                        continue;
+
+                    event.type = currentStatus.keyboardModifiers & i 
+                        ? FPGA_DRIVER_HID_EVENT_KEY_DOWN 
+                        : FPGA_DRIVER_HID_EVENT_KEY_UP;
+
+                    event.keyEvent.keyCode = FPGA_DRIVER_HID_KEY_MODIFIER_TO_CODE(i);
+
+                    callback(event);
+                }
+
+            if (!(FPGA_DRIVER_HID_KEY_IS_ERROR(currentStatus.keyboardKeys[0]) || 
+                  FPGA_DRIVER_HID_KEY_IS_ERROR(currentStatus.keyboardKeys[1]) || 
+                  FPGA_DRIVER_HID_KEY_IS_ERROR(currentStatus.keyboardKeys[2]) || 
+                  FPGA_DRIVER_HID_KEY_IS_ERROR(currentStatus.keyboardKeys[3]) || 
+                  FPGA_DRIVER_HID_KEY_IS_ERROR(currentStatus.keyboardKeys[4]) || 
+                  FPGA_DRIVER_HID_KEY_IS_ERROR(currentStatus.keyboardKeys[5])))  //if rollover error or else just skip keys
+            {
+                uint8_t unmappedKeys[6];
+                int unmappedKeysCount;
+
+                //dont feel like writing super optimized code for this
+                driver_helper_hid_map_keys(currentStatus.keyboardKeys, previous_hid_status.keyboardKeys, unmappedKeys, &unmappedKeysCount);
+
+                event.type = FPGA_DRIVER_HID_EVENT_KEY_UP;
+
+                for (int i = 0; i < unmappedKeysCount; ++i)
+                {
+                    event.keyEvent.keyCode = unmappedKeys[i];
+                    callback(event);
+                }
+
+                driver_helper_hid_map_keys(previous_hid_status.keyboardKeys, currentStatus.keyboardKeys, unmappedKeys, &unmappedKeysCount);
+                
+                event.type = FPGA_DRIVER_HID_EVENT_KEY_DOWN;
+
+                for (int i = 0; i < unmappedKeysCount; ++i)
+                {
+                    event.keyEvent.keyCode = unmappedKeys[i];
+                    callback(event);
+                }
+            }
+
+            //mouse events
+
+            if (currentStatus.mouseKeys != previous_hid_status.mouseKeys)
+                for (int i = 1; i < 256; i <<= 1)
+                {
+                    if ((currentStatus.mouseKeys & i) == (previous_hid_status.mouseKeys & i))
+                        continue;
+
+                    event.type = currentStatus.mouseKeys & i 
+                        ? FPGA_DRIVER_HID_EVENT_MOUSE_BUTTON_DOWN 
+                        : FPGA_DRIVER_HID_EVENT_MOUSE_BUTTON_UP;
+
+                    event.mouseButtonEvent.buttonCode = i;
+
+                    callback(event);
+                }
+
+            event.mouseMoveEvent.moveX = currentStatus.mouseX - previous_hid_status.mouseX; //this should work even when int32 overflows
+            event.mouseMoveEvent.moveY = currentStatus.mouseY - previous_hid_status.mouseY;
+            event.mouseMoveEvent.moveWheel = currentStatus.mouseWheel - previous_hid_status.mouseWheel;
+
+            if (event.mouseMoveEvent.moveX != 0 || 
+                event.mouseMoveEvent.moveY != 0 || 
+                event.mouseMoveEvent.moveWheel != 0)
+            {
+                event.type = FPGA_DRIVER_HID_EVENT_MOUSE_MOVE;
+
+                event.mouseMoveEvent.pressedButtons = currentStatus.mouseKeys;
+                callback(event);
+            }
+        }
+
+        previous_hid_status = currentStatus;
     }
 }

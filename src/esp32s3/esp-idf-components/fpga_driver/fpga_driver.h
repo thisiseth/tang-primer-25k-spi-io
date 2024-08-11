@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include "fpga_driver_hid_events.h"
 
 #define FPGA_DRIVER_PALETTE_SIZE_BYTES      (256*3)
 
@@ -40,9 +41,22 @@ typedef struct
     int32_t mouseX;
     int32_t mouseY;
     int32_t mouseWheel;
-} hid_status_t;
+} fpga_driver_hid_status_t;
+
+typedef struct
+{
+    fpga_driver_hid_event_type_t type;
+
+    union 
+    {
+        fpga_driver_hid_key_event_t keyEvent;
+        fpga_driver_hid_mouse_button_event_t mouseButtonEvent;
+        fpga_driver_hid_mouse_move_event_t mouseMoveEvent;
+    };
+} fpga_driver_hid_event_t;
 
 typedef void (*fpga_driver_audio_requested_cb_t)(uint32_t *buffer, int *sampleCount, int maxSampleCount);
+typedef void (*fpga_driver_hid_event_cb_t)(fpga_driver_hid_event_t hidEvent);
 
 bool fpga_driver_init(fpga_driver_config_t *config);
 
@@ -54,6 +68,6 @@ void fpga_driver_present_frame(uint8_t **palette, uint8_t **framebuffer, fpga_dr
 
 void fpga_driver_register_audio_requested_cb(fpga_driver_audio_requested_cb_t callback);
 
-void fpga_driver_hid_get_status(hid_status_t *status);
+void fpga_driver_hid_get_status(fpga_driver_hid_status_t *status);
 
-
+void fpga_driver_register_hid_event_cb(fpga_driver_hid_event_cb_t callback);
