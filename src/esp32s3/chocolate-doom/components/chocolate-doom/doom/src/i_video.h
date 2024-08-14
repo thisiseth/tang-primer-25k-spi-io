@@ -74,7 +74,6 @@ extern pixel_t *I_VideoBuffer;
 
 extern int screen_width;
 extern int screen_height;
-extern int aspect_ratio_correct;
 extern int vga_porch_flash;
 
 // Joystic/gamepad hysteresis
@@ -95,6 +94,7 @@ void I_InitWindowTitle(void);
 void I_RegisterWindowIcon(const unsigned int *icon, int width, int height);
 void I_InitWindowIcon(void);
 
+extern int aspect_ratio_correct;
 extern char *video_driver;
 extern boolean screenvisible;
 extern boolean screensaver_mode;

@@ -106,30 +106,28 @@ int mouse_threshold = 10;
 #ifdef ESP32_DOOM
 
 // Translates the SDL key to a value of the type found in doomkeys.h
-static int TranslateKey(SDL_Keysym *sym)
+static int TranslateKey(uint8_t keyCode)
 {
-    int scancode = sym->scancode;
-
-    switch (scancode)
+    switch (keyCode)
     {
-        case SDL_SCANCODE_LCTRL:
-        case SDL_SCANCODE_RCTRL:
+        case FPGA_DRIVER_HID_KEY_CODE_LEFT_CTRL:
+        case FPGA_DRIVER_HID_KEY_CODE_RIGHT_CTRL:
             return KEY_RCTRL;
 
-        case SDL_SCANCODE_LSHIFT:
-        case SDL_SCANCODE_RSHIFT:
+        case FPGA_DRIVER_HID_KEY_CODE_LEFT_SHIFT:
+        case FPGA_DRIVER_HID_KEY_CODE_RIGHT_SHIFT:
             return KEY_RSHIFT;
 
-        case SDL_SCANCODE_LALT:
+        case FPGA_DRIVER_HID_KEY_CODE_LEFT_ALT:
             return KEY_LALT;
 
-        case SDL_SCANCODE_RALT:
+        case FPGA_DRIVER_HID_KEY_CODE_RIGHT_ALT:
             return KEY_RALT;
 
         default:
-            if (scancode >= 0 && scancode < arrlen(scancode_translate_table))
+            if (keyCode < arrlen(scancode_translate_table))
             {
-                return scancode_translate_table[scancode];
+                return scancode_translate_table[keyCode];
             }
             else
             {
@@ -141,29 +139,31 @@ static int TranslateKey(SDL_Keysym *sym)
 // Get the localized version of the key press. This takes into account the
 // keyboard layout, but does not apply any changes due to modifiers, (eg.
 // shift-, alt-, etc.)
-static int GetLocalizedKey(SDL_Keysym *sym)
+static int GetLocalizedKey(uint8_t keyCode)
 {
     // When using Vanilla mapping, we just base everything off the scancode
     // and always pretend the user is using a US layout keyboard.
     if (vanilla_keyboard_mapping)
     {
-        return TranslateKey(sym);
+        return TranslateKey(keyCode);
     }
     else
     {
-        int result = sym->sym;
+        // int result = sym->sym;
 
-        if (result < 0 || result >= 128)
-        {
-            result = 0;
-        }
+        // if (result < 0 || result >= 128)
+        // {
+        //     result = 0;
+        // }
 
-        return result;
+        // return result;
+
+        return 0;
     }
 }
 
 // Get the equivalent ASCII (Unicode?) character for a keypress.
-static int GetTypedChar(SDL_Keysym *sym)
+static int GetTypedChar(uint8_t keyCode, uint8_t modifiers)
 {
     // We only return typed characters when entering text, after
     // I_StartTextInput() has been called. Otherwise we return nothing.
@@ -177,11 +177,11 @@ static int GetTypedChar(SDL_Keysym *sym)
     // Otherwise we should use the native key mapping.
     if (vanilla_keyboard_mapping)
     {
-        int result = TranslateKey(sym);
+        int result = TranslateKey(keyCode);
 
         // If shift is held down, apply the original uppercase
         // translation table used under DOS.
-        if ((SDL_GetModState() & KMOD_SHIFT) != 0
+        if ((modifiers & (FPGA_DRIVER_HID_KEY_MODIFIER_LEFT_SHIFT | FPGA_DRIVER_HID_KEY_MODIFIER_RIGHT_SHIFT)) != 0
          && result >= 0 && result < arrlen(shiftxform))
         {
             result = shiftxform[result];
@@ -191,83 +191,82 @@ static int GetTypedChar(SDL_Keysym *sym)
     }
     else
     {
-        SDL_Event next_event;
+        // SDL_Event next_event;
 
-        // Special cases, where we always return a fixed value.
-        switch (sym->sym)
-        {
-            case SDLK_BACKSPACE: return KEY_BACKSPACE;
-            case SDLK_RETURN:    return KEY_ENTER;
-            default:
-                break;
-        }
+        // // Special cases, where we always return a fixed value.
+        // switch (sym->sym)
+        // {
+        //     case SDLK_BACKSPACE: return KEY_BACKSPACE;
+        //     case SDLK_RETURN:    return KEY_ENTER;
+        //     default:
+        //         break;
+        // }
 
-        // The following is a gross hack, but I don't see an easier way
-        // of doing this within the SDL2 API (in SDL1 it was easier).
-        // We want to get the fully transformed input character associated
-        // with this keypress - correct keyboard layout, appropriately
-        // transformed by any modifier keys, etc. So peek ahead in the SDL
-        // event queue and see if the key press is immediately followed by
-        // an SDL_TEXTINPUT event. If it is, it's reasonable to assume the
-        // key press and the text input are connected. Technically the SDL
-        // API does not guarantee anything of the sort, but in practice this
-        // is what happens and I've verified it through manual inspect of
-        // the SDL source code.
-        //
-        // In an ideal world we'd split out ev_keydown into a separate
-        // ev_textinput event, as SDL2 has done. But this doesn't work
-        // (I experimented with the idea), because lots of Doom's code is
-        // based around different responders "eating" events to stop them
-        // being passed on to another responder. If code is listening for
-        // a text input, it cannot block the corresponding keydown events
-        // which can affect other responders.
-        //
-        // So we're stuck with this as a rather fragile alternative.
+        // // The following is a gross hack, but I don't see an easier way
+        // // of doing this within the SDL2 API (in SDL1 it was easier).
+        // // We want to get the fully transformed input character associated
+        // // with this keypress - correct keyboard layout, appropriately
+        // // transformed by any modifier keys, etc. So peek ahead in the SDL
+        // // event queue and see if the key press is immediately followed by
+        // // an SDL_TEXTINPUT event. If it is, it's reasonable to assume the
+        // // key press and the text input are connected. Technically the SDL
+        // // API does not guarantee anything of the sort, but in practice this
+        // // is what happens and I've verified it through manual inspect of
+        // // the SDL source code.
+        // //
+        // // In an ideal world we'd split out ev_keydown into a separate
+        // // ev_textinput event, as SDL2 has done. But this doesn't work
+        // // (I experimented with the idea), because lots of Doom's code is
+        // // based around different responders "eating" events to stop them
+        // // being passed on to another responder. If code is listening for
+        // // a text input, it cannot block the corresponding keydown events
+        // // which can affect other responders.
+        // //
+        // // So we're stuck with this as a rather fragile alternative.
 
-        if (SDL_PeepEvents(&next_event, 1, SDL_PEEKEVENT,
-                           SDL_FIRSTEVENT, SDL_LASTEVENT) == 1
-         && next_event.type == SDL_TEXTINPUT)
-        {
-            // If an SDL_TEXTINPUT event is found, we always assume it
-            // matches the key press. The input text must be a single
-            // ASCII character - if it isn't, it's possible the input
-            // char is a Unicode value instead; better to send a null
-            // character than the unshifted key.
-            if (strlen(next_event.text.text) == 1
-             && (next_event.text.text[0] & 0x80) == 0)
-            {
-                return next_event.text.text[0];
-            }
-        }
+        // if (SDL_PeepEvents(&next_event, 1, SDL_PEEKEVENT,
+        //                    SDL_FIRSTEVENT, SDL_LASTEVENT) == 1
+        //  && next_event.type == SDL_TEXTINPUT)
+        // {
+        //     // If an SDL_TEXTINPUT event is found, we always assume it
+        //     // matches the key press. The input text must be a single
+        //     // ASCII character - if it isn't, it's possible the input
+        //     // char is a Unicode value instead; better to send a null
+        //     // character than the unshifted key.
+        //     if (strlen(next_event.text.text) == 1
+        //      && (next_event.text.text[0] & 0x80) == 0)
+        //     {
+        //         return next_event.text.text[0];
+        //     }
+        // }
 
         // Failed to find anything :/
         return 0;
     }
 }
 
-void I_HandleKeyboardEvent(esp32_input_event_t *input_event)
+void I_HandleKeyboardEvent(fpga_driver_hid_event_t *input_event)
 {
     // XXX: passing pointers to event for access after this function
     // has terminated is undefined behaviour
     event_t event;
 
-    switch (sdlevent->type)
+    switch (input_event->type)
     {
-        case SDL_KEYDOWN:
+        case FPGA_DRIVER_HID_EVENT_KEY_DOWN:
             event.type = ev_keydown;
-            event.data1 = TranslateKey(&sdlevent->key.keysym);
-            event.data2 = GetLocalizedKey(&sdlevent->key.keysym);
-            event.data3 = GetTypedChar(&sdlevent->key.keysym);
+            event.data1 = TranslateKey(input_event->keyEvent.keyCode);
+            event.data2 = GetLocalizedKey(input_event->keyEvent.keyCode);
+            event.data3 = GetTypedChar(input_event->keyEvent.keyCode, input_event->keyEvent.modifiers);
 
             if (event.data1 != 0)
             {
                 D_PostEvent(&event);
             }
             break;
-
-        case SDL_KEYUP:
+        case FPGA_DRIVER_HID_EVENT_KEY_UP:
             event.type = ev_keyup;
-            event.data1 = TranslateKey(&sdlevent->key.keysym);
+            event.data1 = TranslateKey(input_event->keyEvent.keyCode);
 
             // data2/data3 are initialized to zero for ev_keyup.
             // For ev_keydown it's the shifted Unicode character
@@ -283,7 +282,6 @@ void I_HandleKeyboardEvent(esp32_input_event_t *input_event)
                 D_PostEvent(&event);
             }
             break;
-
         default:
             break;
     }
@@ -299,14 +297,9 @@ void I_StopTextInput(void)
     text_input_enabled = false;
 }
 
-static void UpdateMouseButtonState(unsigned int button, boolean on)
+static void UpdateMouseButtonState(uint8_t buttonCode, boolean on)
 {
     static event_t event;
-
-    if (button < SDL_BUTTON_LEFT || button > MAX_MOUSE_BUTTONS)
-    {
-        return;
-    }
 
     // Note: button "0" is left, button "1" is right,
     // button "2" is middle for Doom.  This is different
@@ -314,37 +307,42 @@ static void UpdateMouseButtonState(unsigned int button, boolean on)
     // In the end: Left=0, Right=1, Middle=2,
     // WheelUp=3 WheelDown=4, XButton1=5, XButton2=6
 
-    switch (button)
+    switch (buttonCode)
     {
-        case SDL_BUTTON_LEFT:
-            button = 0;
+        case FPGA_DRIVER_HID_MOUSE_BUTTON_LEFT:
+            buttonCode = 0;
             break;
-
-        case SDL_BUTTON_RIGHT:
-            button = 1;
+        case FPGA_DRIVER_HID_MOUSE_BUTTON_RIGHT:
+            buttonCode = 1;
             break;
-
-        case SDL_BUTTON_MIDDLE:
-            button = 2;
+        case FPGA_DRIVER_HID_MOUSE_BUTTON_MIDDLE:
+            buttonCode = 2;
             break;
-
-        default:
             // SDL buttons are indexed from 1.
             // And the wheel is mapped to button 3/4
             // So we have to increment 2 and decrement 1 => inc 1.
-            button++;
+        case FPGA_DRIVER_HID_MOUSE_BUTTON_4:
+            buttonCode = 5;
             break;
+        case FPGA_DRIVER_HID_MOUSE_BUTTON_5:
+            buttonCode = 6;
+            break;
+        case FPGA_DRIVER_HID_MOUSE_BUTTON_6:
+            buttonCode = 7;
+            break;
+        default:
+            return;
     }
 
     // Turn bit representing this button on or off.
 
     if (on)
     {
-        mouse_button_state |= (1 << button);
+        mouse_button_state |= (1 << buttonCode);
     }
     else
     {
-        mouse_button_state &= ~(1 << button);
+        mouse_button_state &= ~(1 << buttonCode);
     }
 
     // Post an event with the new button state.
@@ -355,7 +353,7 @@ static void UpdateMouseButtonState(unsigned int button, boolean on)
     D_PostEvent(&event);
 }
 
-static void MapMouseWheelToButtons(SDL_MouseWheelEvent *wheel)
+static void MapMouseWheelToButtons(int32_t moveWheel)
 {
     // SDL2 distinguishes button events from mouse wheel events.
     // We want to treat the mouse wheel as two buttons, as per
@@ -363,7 +361,7 @@ static void MapMouseWheelToButtons(SDL_MouseWheelEvent *wheel)
     static event_t up, down;
     int button;
 
-    if (wheel->y <= 0)
+    if (moveWheel <= 0)
     {   // scroll down
         button = 4;
     }
@@ -387,22 +385,19 @@ static void MapMouseWheelToButtons(SDL_MouseWheelEvent *wheel)
     D_PostEvent(&up);
 }
 
-void I_HandleMouseEvent(esp32_input_event_t *input_event)
+void I_HandleMouseEvent(fpga_driver_hid_event_t *input_event)
 {
-    switch (sdlevent->type)
+    switch (input_event->type)
     {
-        case SDL_MOUSEBUTTONDOWN:
-            UpdateMouseButtonState(sdlevent->button.button, true);
+        case FPGA_DRIVER_HID_EVENT_MOUSE_BUTTON_DOWN:
+            UpdateMouseButtonState(input_event->mouseButtonEvent.buttonCode, true);
             break;
-
-        case SDL_MOUSEBUTTONUP:
-            UpdateMouseButtonState(sdlevent->button.button, false);
+        case FPGA_DRIVER_HID_EVENT_MOUSE_BUTTON_UP:
+            UpdateMouseButtonState(input_event->mouseButtonEvent.buttonCode, false);
             break;
-
-        case SDL_MOUSEWHEEL:
-            MapMouseWheelToButtons(&(sdlevent->wheel));
+        case FPGA_DRIVER_HID_EVENT_MOUSE_MOVE:
+            MapMouseWheelToButtons(input_event->mouseMoveEvent.moveWheel);
             break;
-
         default:
             break;
     }
@@ -423,6 +418,7 @@ static int AccelerateMouse(int val)
     }
 }
 
+
 //
 // Read the change in mouse state to generate mouse motion events
 //
@@ -430,10 +426,20 @@ static int AccelerateMouse(int val)
 // motion event.
 void I_ReadMouse(void)
 {
-    int x, y;
-    event_t ev;
+    static int32_t prevMouseX, prevMouseY;
 
-    SDL_GetRelativeMouseState(&x, &y);
+    event_t ev;
+    int x, y;
+
+    fpga_driver_hid_status_t hid_status;
+
+    fpga_driver_hid_get_status(&hid_status);
+
+    x = (int)(hid_status.mouseX - prevMouseX);
+    y = (int)(hid_status.mouseY - prevMouseY);
+
+    prevMouseX = hid_status.mouseX;
+    prevMouseY = hid_status.mouseY;
 
     if (x != 0 || y != 0) 
     {

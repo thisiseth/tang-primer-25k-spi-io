@@ -27,6 +27,10 @@
 
 #include "v_diskicon.h"
 
+#if ESP32_DOOM
+    #include <string.h>
+#endif
+
 // Only display the disk icon if more then this much bytes have been read
 // during the previous tic.
 

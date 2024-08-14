@@ -20,7 +20,7 @@ if(ESP32_DOOM)
         d_mode.c            d_mode.h
                             d_ticcmd.h
         deh_str.c           deh_str.h
-        gusconf.c           gusconf.h
+        #gusconf.c           gusconf.h
         i_cdmus.c           i_cdmus.h
         i_endoom.c          i_endoom.h
         i_flmusic.c
@@ -38,9 +38,9 @@ if(ESP32_DOOM)
         i_video.c           i_video.h
         #i_videohr.c         i_videohr.h
         #i_winmusic.c
-        #midifallback.c      midifallback.h
-        #midifile.c          midifile.h
-        #mus2mid.c           mus2mid.h
+        midifallback.c      midifallback.h
+        midifile.c          midifile.h
+        mus2mid.c           mus2mid.h
         m_bbox.c            m_bbox.h
         m_cheat.c           m_cheat.h
         m_config.c          m_config.h
@@ -85,7 +85,7 @@ if(ESP32_DOOM)
     set(SOURCE_FILES ${COMMON_SOURCE_FILES} ${GAME_SOURCE_FILES})
     set(SOURCE_FILES_WITH_DEH ${SOURCE_FILES} ${DEHACKED_SOURCE_FILES})
 
-    set(EXTRA_LIBS textscreen opl idf::freertos idf::esp_timer)
+    set(EXTRA_LIBS textscreen opl idf::freertos idf::esp_timer idf::fpga_driver)
 
     if(ENABLE_SDL2_MIXER)
         list(APPEND EXTRA_LIBS SDL2_mixer::SDL2_mixer)

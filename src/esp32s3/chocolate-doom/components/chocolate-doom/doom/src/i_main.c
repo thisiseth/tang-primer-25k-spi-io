@@ -63,9 +63,6 @@ int main(int argc, char **argv)
         exit(0);
     }
 
-    M_FindResponseFile();
-    M_SetExeDir();
-
     // start doom
 
     D_DoomMain ();

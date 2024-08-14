@@ -21,7 +21,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "SDL.h"
+#ifdef ESP32_DOOM
+    #include "SDL.h"
+#endif
 
 #include "opl.h"
 #include "opl_internal.h"
@@ -31,6 +33,9 @@
 
 static opl_driver_t *drivers[] =
 {
+#ifdef ESP32_DOOM
+    &opl_esp32_driver,
+#else
 #if (defined(__i386__) || defined(__x86_64__)) && defined(HAVE_IOPERM)
     &opl_linux_driver,
 #endif
@@ -43,6 +48,7 @@ static opl_driver_t *drivers[] =
 #ifndef DISABLE_SDL2MIXER
     &opl_sdl_driver,
 #endif // DISABLE_SDL2MIXER
+#endif
     NULL
 };
 

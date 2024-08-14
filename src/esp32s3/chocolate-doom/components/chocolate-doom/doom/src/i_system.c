@@ -34,7 +34,7 @@
     #include "SDL.h"
 #else
     #define PACKAGE_NAME "abc"
-    #define PACKAGE_STRIN "abc"
+    #define PACKAGE_STRING "abc"
     #define SDL_Quit() ((void)0)
     #define SDL_ShowSimpleMessageBox(a, b, c, d) (printf("%s %s %s\n", a, b, c))
     #define SDL_MESSAGEBOX_ERROR "error"

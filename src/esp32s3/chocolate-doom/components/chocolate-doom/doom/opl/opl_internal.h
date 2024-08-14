@@ -54,6 +54,9 @@ typedef struct
 
 extern unsigned int opl_sample_rate;
 
+#ifdef ESP32_DOOM
+extern opl_driver_t opl_esp32_driver;
+#else
 
 #if (defined(__i386__) || defined(__x86_64__)) && defined(HAVE_IOPERM)
 extern opl_driver_t opl_linux_driver;
@@ -66,6 +69,7 @@ extern opl_driver_t opl_win32_driver;
 #endif
 extern opl_driver_t opl_sdl_driver;
 
+#endif
 
 #endif /* #ifndef OPL_INTERNAL_H */
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdbool.h>
 #include "fpga_driver_hid_events.h"
 
 #define FPGA_DRIVER_PALETTE_SIZE_BYTES      (256*3)

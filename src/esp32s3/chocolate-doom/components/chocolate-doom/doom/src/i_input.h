@@ -23,12 +23,9 @@
 #include "doomtype.h"
 
 #ifndef ESP32_DOOM
-#include "SDL.h"
+    #include "SDL.h"
 #else
-typedef struct 
-{
-
-} esp32_input_event_t;
+    #include "fpga_driver.h"
 #endif
 
 #define MAX_MOUSE_BUTTONS 8
@@ -52,8 +49,8 @@ void I_StopTextInput(void);
 void I_HandleKeyboardEvent(SDL_Event *sdlevent);
 void I_HandleMouseEvent(SDL_Event *sdlevent);
 #else
-void I_HandleKeyboardEvent(esp32_input_event_t *input_event);
-void I_HandleMouseEvent(esp32_input_event_t *input_event);
+void I_HandleKeyboardEvent(fpga_driver_hid_event_t *input_event);
+void I_HandleMouseEvent(fpga_driver_hid_event_t *input_event);
 #endif
 
 
