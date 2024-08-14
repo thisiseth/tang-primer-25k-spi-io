@@ -23,16 +23,15 @@
 
 #ifndef ESP32_DOOM
     #include "gusconf.h"
+    #ifndef DISABLE_SDL2MIXER
+        #include "SDL_mixer.h"
+    #endif 
 #endif
 
 #include "i_sound.h"
 #include "i_video.h"
 #include "m_argv.h"
 #include "m_config.h"
-
-#ifndef DISABLE_SDL2MIXER
-#include "SDL_mixer.h"
-#endif  // DISABLE_SDL2MIXER
 
 #ifdef ESP32_DOOM
 
@@ -66,9 +65,6 @@ int snd_sfxdevice = SNDDEVICE_SB;
 static const sound_module_t *sound_module;
 static const music_module_t *music_module;
 
-// If true, the music pack module was successfully initialized.
-static boolean music_packs_active = false;
-
 // This is either equal to music_module or &music_pack_module,
 // depending on whether the current track is substituted.
 static const music_module_t *active_music_module;
@@ -86,10 +82,7 @@ static int snd_mport = 0;
 
 static const sound_module_t *sound_modules[] =
 {
-#ifndef DISABLE_SDL2MIXER
-    &sound_sdl_module,
-#endif // DISABLE_SDL2MIXER
-    &sound_pcsound_module,
+    &sound_esp32_module,
     NULL,
 };
 
@@ -97,16 +90,7 @@ static const sound_module_t *sound_modules[] =
 
 static const music_module_t *music_modules[] =
 {
-#ifdef _WIN32
-    &music_win_module,
-#endif
-#ifdef HAVE_FLUIDSYNTH
-    &music_fl_module,
-#endif // HAVE_FLUIDSYNTH
-#ifndef DISABLE_SDL2MIXER
-    &music_sdl_module,
-#endif // DISABLE_SDL2MIXER
-    &music_opl_module,
+    &music_esp32_module,
     NULL,
 };
 
@@ -194,7 +178,7 @@ static void InitMusicModule(void)
 
 void I_InitSound(GameMission_t mission)
 {
-    boolean nosound, nosfx, nomusic, nomusicpacks;
+    boolean nosound, nosfx, nomusic;
 
     //!
     // @vanilla
@@ -220,16 +204,6 @@ void I_InitSound(GameMission_t mission)
 
     nomusic = M_CheckParm("-nomusic") > 0;
 
-    //!
-    //
-    // Disable substitution music packs.
-    //
-
-    nomusicpacks = M_ParmExists("-nomusicpacks");
-
-    // Auto configure the music pack directory.
-    M_SetMusicPackDir();
-
     // Initialize the sound and music subsystems.
 
     if (!nosound)
@@ -237,13 +211,6 @@ void I_InitSound(GameMission_t mission)
         // This is kind of a hack. If native MIDI is enabled, set up
         // the TIMIDITY_CFG environment variable here before SDL_mixer
         // is opened.
-
-        if (!nomusic
-         && (snd_musicdevice == SNDDEVICE_GENMIDI
-          || snd_musicdevice == SNDDEVICE_GUS))
-        {
-            I_InitTimidityConfig();
-        }
 
         if (!nosfx)
         {
@@ -255,12 +222,6 @@ void I_InitSound(GameMission_t mission)
             InitMusicModule();
             active_music_module = music_module;
         }
-
-        // We may also have substitute MIDIs we can load.
-        if (!nomusicpacks && music_module != NULL)
-        {
-            music_packs_active = music_pack_module.Init();
-        }
     }
 }
 
@@ -269,11 +230,6 @@ void I_ShutdownSound(void)
     if (sound_module != NULL)
     {
         sound_module->Shutdown();
-    }
-
-    if (music_packs_active)
-    {
-        music_pack_module.Shutdown();
     }
 
     if (music_module != NULL)
@@ -392,11 +348,6 @@ void I_SetMusicVolume(int volume)
     if (music_module != NULL)
     {
         music_module->SetMusicVolume(volume);
-
-        if (music_packs_active && music_module != &music_pack_module)
-        {
-            music_pack_module.SetMusicVolume(volume);
-        }
     }
 }
 
@@ -418,22 +369,6 @@ void I_ResumeSong(void)
 
 void *I_RegisterSong(void *data, int len)
 {
-    // If the music pack module is active, check to see if there is a
-    // valid substitution for this track. If there is, we set the
-    // active_music_module pointer to the music pack module for the
-    // duration of this particular track.
-    if (music_packs_active)
-    {
-        void *handle;
-
-        handle = music_pack_module.RegisterSong(data, len);
-        if (handle != NULL)
-        {
-            active_music_module = &music_pack_module;
-            return handle;
-        }
-    }
-
     // No substitution for this track, so use the main module.
     active_music_module = music_module;
     if (active_music_module != NULL)
@@ -495,7 +430,6 @@ void I_BindSoundVariables(void)
     M_BindStringVariable("snd_dmxoption",        &snd_dmxoption);
     M_BindIntVariable("snd_samplerate",          &snd_samplerate);
     M_BindIntVariable("snd_cachesize",           &snd_cachesize);
-    M_BindIntVariable("opl_io_port",             &opl_io_port);
     M_BindIntVariable("snd_pitchshift",          &snd_pitchshift);
 
     M_BindIntVariable("use_libsamplerate",       &use_libsamplerate);

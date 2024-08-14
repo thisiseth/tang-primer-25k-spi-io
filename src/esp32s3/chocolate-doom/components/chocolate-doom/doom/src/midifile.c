@@ -544,9 +544,15 @@ static boolean ReadFileHeader(midi_file_t *file, FILE *stream)
     if (!CheckChunkHeader(&file->header.chunk_header, HEADER_CHUNK_ID)
      || SDL_SwapBE32(file->header.chunk_header.chunk_size) != 6)
     {
+#ifdef ESP32_DOOM
+        fprintf(stderr, "ReadFileHeader: Invalid MIDI chunk header! "
+                        "chunk_size=%li\n",
+                        SDL_SwapBE32(file->header.chunk_header.chunk_size));
+#else
         fprintf(stderr, "ReadFileHeader: Invalid MIDI chunk header! "
                         "chunk_size=%i\n",
                         SDL_SwapBE32(file->header.chunk_header.chunk_size));
+#endif
         return false;
     }
 

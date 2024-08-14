@@ -2304,7 +2304,7 @@ static void SetVariable(default_t *def, const char *value)
 
             for ( ; str[i] != '\0'; i++)
             {
-                if (!isdigit(str[i]))
+                if (!isdigit((uint8_t)str[i]))
                 {
                     str[i] = dec;
                     break;
@@ -2360,7 +2360,7 @@ static void LoadDefaultCollection(default_collection_t *collection)
         // Strip off trailing non-printable characters (\r characters
         // from DOS text files)
 
-        while (strlen(strparm) > 0 && !isprint(strparm[strlen(strparm)-1]))
+        while (strlen(strparm) > 0 && !isprint((uint8_t)(strparm[strlen(strparm)-1])))
         {
             strparm[strlen(strparm)-1] = '\0';
         }
@@ -2618,25 +2618,7 @@ float M_GetFloatVariable(const char *name)
 
 static char *GetDefaultConfigDir(void)
 {
-#if !defined(_WIN32) || defined(_WIN32_WCE)
-
-    // Configuration settings are stored in an OS-appropriate path
-    // determined by SDL.  On typical Unix systems, this might be
-    // ~/.local/share/chocolate-doom.  On Windows, we behave like
-    // Vanilla Doom and save in the current directory.
-
-    char *result;
-    char *copy;
-
-    result = SDL_GetPrefPath("", PACKAGE_TARNAME);
-    if (result != NULL)
-    {
-        copy = M_StringDuplicate(result);
-        SDL_free(result);
-        return copy;
-    }
-#endif /* #ifndef _WIN32 */
-    return M_StringDuplicate(exedir);
+    return M_StringDuplicate("/config/");
 }
 
 // 
@@ -2659,10 +2641,7 @@ void M_SetConfigDir(const char *dir)
         configdir = GetDefaultConfigDir();
     }
 
-    if (strcmp(configdir, exedir) != 0)
-    {
-        printf("Using %s for configuration and saves\n", configdir);
-    }
+    printf("Using %s for configuration and saves\n", configdir);
 
     // Make the directory if it doesn't already exist:
 
@@ -2680,37 +2659,6 @@ void M_SetConfigDir(const char *dir)
 // the directory if necessary.
 void M_SetMusicPackDir(void)
 {
-    const char *current_path;
-    char *prefdir, *music_pack_path, *readme_path;
-
-    current_path = M_GetStringVariable("music_pack_path");
-
-    if (current_path != NULL && strlen(current_path) > 0)
-    {
-        return;
-    }
-
-    prefdir = SDL_GetPrefPath("", PACKAGE_TARNAME);
-    if (prefdir == NULL)
-    {
-        printf("M_SetMusicPackDir: SDL_GetPrefPath failed, music pack directory not set\n");
-        return;
-    }
-    music_pack_path = M_StringJoin(prefdir, "music-packs", NULL);
-
-    M_MakeDirectory(prefdir);
-    M_MakeDirectory(music_pack_path);
-    M_SetVariable("music_pack_path", music_pack_path);
-
-    // We write a README file with some basic instructions on how to use
-    // the directory.
-    readme_path = M_StringJoin(music_pack_path, DIR_SEPARATOR_S,
-                               "README.txt", NULL);
-    M_WriteFile(readme_path, MUSIC_PACK_README, strlen(MUSIC_PACK_README));
-
-    free(readme_path);
-    free(music_pack_path);
-    SDL_free(prefdir);
 }
 
 //
@@ -2745,21 +2693,6 @@ char *M_GetSaveGameDir(const char *iwadname)
 
         printf("Save directory changed to %s.\n", savegamedir);
     }
-#ifdef _WIN32
-    // In -cdrom mode, we write savegames to a specific directory
-    // in addition to configs.
-
-    else if (M_ParmExists("-cdrom"))
-    {
-        savegamedir = M_StringDuplicate(configdir);
-    }
-#endif
-    // If not "doing" a configuration directory (Windows), don't "do"
-    // a savegame directory, either.
-    else if (!strcmp(configdir, exedir))
-    {
-	savegamedir = M_StringDuplicate("");
-    }
     else
     {
         // ~/.local/share/chocolate-doom/savegames
@@ -2790,15 +2723,7 @@ char *M_GetAutoloadDir(const char *iwadname)
 
     if (autoload_path == NULL || strlen(autoload_path) == 0)
     {
-        char *prefdir;
-        prefdir = SDL_GetPrefPath("", PACKAGE_TARNAME);
-        if (prefdir == NULL)
-        {
-            printf("M_GetAutoloadDir: SDL_GetPrefPath failed\n");
-            return NULL;
-        }
-        autoload_path = M_StringJoin(prefdir, "autoload", NULL);
-        SDL_free(prefdir);
+        autoload_path = "/autoload/";
     }
 
     M_MakeDirectory(autoload_path);

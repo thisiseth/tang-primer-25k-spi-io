@@ -22,6 +22,9 @@
 #include <string.h>
 
 #ifdef ESP32_DOOM
+    #include "freertos/FreeRTOS.h"
+    #include "freertos/task.h"
+#else
     #include "SDL.h"
 #endif
 
@@ -449,6 +452,41 @@ void OPL_Unlock(void)
     }
 }
 
+#ifdef ESP32_DOOM
+
+typedef struct
+{
+    TaskHandle_t task;
+} delay_data_t;
+
+static void DelayCallback(void *_delay_data)
+{
+    delay_data_t *delay_data = _delay_data;
+
+    xTaskNotifyGive(delay_data->task);
+}
+
+void OPL_Delay(uint64_t us)
+{
+    delay_data_t delay_data;
+
+    if (driver == NULL)
+    {
+        return;
+    }
+
+    delay_data.task = xTaskGetCurrentTaskHandle();
+
+    // Create a callback that will signal this thread after the
+    // specified time.
+
+    OPL_SetCallback(us, DelayCallback, &delay_data);
+
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+}
+
+#else
+
 typedef struct
 {
     int finished;
@@ -503,6 +541,8 @@ void OPL_Delay(uint64_t us)
     SDL_DestroyMutex(delay_data.mutex);
     SDL_DestroyCond(delay_data.cond);
 }
+
+#endif
 
 void OPL_SetPaused(int paused)
 {

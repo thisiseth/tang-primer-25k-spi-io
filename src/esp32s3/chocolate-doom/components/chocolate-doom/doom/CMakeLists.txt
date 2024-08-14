@@ -9,7 +9,9 @@ endif()
 set(top_srcdir ${CMAKE_CURRENT_SOURCE_DIR})
 set(top_builddir ${CMAKE_CURRENT_BINARY_DIR})
 
-if (NOT ESP32_DOOM)
+if (ESP32_DOOM)
+    set(PACKAGE_STRING "abc")
+else()
     # AC_INIT variables
     set(PACKAGE_NAME "${PROJECT_NAME}")
     set(PACKAGE_TARNAME "chocolate-doom")
@@ -24,7 +26,11 @@ endif()
 
 # Any settings that should apply to all targets in this directory and all
 # subdirectories should go here.  Use judiciously.
-if(MSVC)
+
+if (ESP32_DOOM)
+    add_compile_options("-Wall" "-Wdeclaration-after-statement"
+                        "-Wredundant-decls" "-Wno-char-subscripts" "-Wno-error=unused-but-set-parameter")
+elseif(MSVC)
     add_definitions("/D_CRT_SECURE_NO_WARNINGS" "/D_CRT_SECURE_NO_DEPRECATE"
                     "/D_CRT_NONSTDC_NO_DEPRECATE")
 else()

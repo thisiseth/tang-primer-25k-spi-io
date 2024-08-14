@@ -254,6 +254,13 @@ void I_OPL_DevMessages(char *, size_t);
 
 // Sound modules
 
+#ifdef ESP32_DOOM
+
+extern const sound_module_t sound_esp32_module;
+extern const music_module_t music_esp32_module;
+
+#else
+
 void I_InitTimidityConfig(void);
 extern const sound_module_t sound_sdl_module;
 extern const sound_module_t sound_pcsound_module;
@@ -276,6 +283,8 @@ extern char *winmm_midi_device;
 extern int winmm_complevel;
 extern int winmm_reset_type;
 extern int winmm_reset_delay;
+#endif
+
 #endif
 
 // For FluidSynth module:

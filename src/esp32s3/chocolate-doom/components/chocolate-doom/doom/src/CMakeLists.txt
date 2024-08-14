@@ -28,11 +28,13 @@ if(ESP32_DOOM)
         i_input.c           i_input.h
         i_joystick.h        #i_joystick.c        
                             i_swap.h
-        i_musicpack.c
-        i_oplmusic.c
+        #i_musicpack.c
+        #i_oplmusic.c
         #i_pcsound.c
         #i_sdlmusic.c
         #i_sdlsound.c
+        i_esp32music.c
+        i_esp32sound.c
         i_sound.c           i_sound.h
         i_timer.h           i_timer.c
         i_video.c           i_video.h

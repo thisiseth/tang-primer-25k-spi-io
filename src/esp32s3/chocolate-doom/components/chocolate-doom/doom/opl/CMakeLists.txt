@@ -7,14 +7,14 @@ if (ESP32_DOOM)
                 #opl_obsd.c
                 opl_queue.c     opl_queue.h
                 opl_esp32.c     #opl_sdl.c
-                opl_timer.c     opl_timer.h
+                #opl_timer.c     opl_timer.h
                 #opl_win32.c
                 #ioperm_sys.c    ioperm_sys.h
                 opl3.c          opl3.h)
     target_include_directories(opl
                             INTERFACE "."
                             PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/../")
-                            
+
 else()
 
     add_library(opl STATIC

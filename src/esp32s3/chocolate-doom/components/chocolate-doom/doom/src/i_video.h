@@ -68,6 +68,8 @@ void I_StartTic (void);
 
 void I_EnableLoadingDisk(int xoffs, int yoffs);
 
+void I_CheckIsScreensaver(void);
+
 extern int vanilla_keyboard_mapping;
 extern int usegamma;
 extern pixel_t *I_VideoBuffer;
@@ -75,6 +77,7 @@ extern pixel_t *I_VideoBuffer;
 extern int screen_width;
 extern int screen_height;
 extern int vga_porch_flash;
+extern boolean screensaver_mode;
 
 // Joystic/gamepad hysteresis
 extern unsigned int joywait;

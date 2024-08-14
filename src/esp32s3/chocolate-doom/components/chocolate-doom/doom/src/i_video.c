@@ -129,10 +129,7 @@ int usegamma = 0;
 // Joystick/gamepad hysteresis
 unsigned int joywait = 0;
 
-// Icon RGB data and dimensions
-static const unsigned int *icon_data;
-static int icon_w;
-static int icon_h;
+boolean screensaver_mode = false;
 
 // Set the variable controlling FPS dots.
 
@@ -400,6 +397,10 @@ void I_BindVideoVariables(void)
     M_BindIntVariable("use_mouse",                 &usemouse);
     M_BindIntVariable("vga_porch_flash",           &vga_porch_flash);
     M_BindIntVariable("usegamma",                  &usegamma);
+}
+
+void I_CheckIsScreensaver(void)
+{
 }
 
 #else
