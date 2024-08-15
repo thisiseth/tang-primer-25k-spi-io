@@ -30,7 +30,10 @@
 
 #include "opl_queue.h"
 
-#define MAX_SOUND_SLICE_TIME 100 /* ms */
+#include "freertos/freertos.h"
+#include "freertos/semphr.h"
+
+#define MAX_SOUND_SLICE_TIME 1 /* ms */
 
 typedef struct
 {
@@ -43,7 +46,7 @@ typedef struct
 // When the callback mutex is locked using OPL_Lock, callback functions
 // are not invoked.
 
-static SDL_mutex *callback_mutex = NULL;
+static SemaphoreHandle_t callback_mutex = NULL;
 
 // Queue of callbacks waiting to be invoked.
 
@@ -51,7 +54,7 @@ static opl_callback_queue_t *callback_queue;
 
 // Mutex used to control access to the callback queue.
 
-static SDL_mutex *callback_queue_mutex = NULL;
+static SemaphoreHandle_t callback_queue_mutex = NULL;
 
 // Current time, in us since startup:
 
@@ -107,7 +110,7 @@ static void AdvanceTime(unsigned int nsamples)
     void *callback_data;
     uint64_t us;
 
-    SDL_LockMutex(callback_queue_mutex);
+    xSemaphoreTake(callback_queue_mutex, portMAX_DELAY);
 
     // Advance time.
 
@@ -139,16 +142,16 @@ static void AdvanceTime(unsigned int nsamples)
         // callback_queue_mutex, as the callback must be able to
         // call OPL_SetCallback to schedule new callbacks.
 
-        SDL_UnlockMutex(callback_queue_mutex);
+        xSemaphoreGive(callback_queue_mutex);
 
-        SDL_LockMutex(callback_mutex);
+        xSemaphoreTake(callback_mutex, portMAX_DELAY);
         callback(callback_data);
-        SDL_UnlockMutex(callback_mutex);
+        xSemaphoreGive(callback_mutex);
 
-        SDL_LockMutex(callback_queue_mutex);
+        xSemaphoreTake(callback_queue_mutex, portMAX_DELAY);
     }
 
-    SDL_UnlockMutex(callback_queue_mutex);
+    xSemaphoreGive(callback_queue_mutex);
 }
 
 // Call the OPL emulator code to fill the specified buffer.
@@ -184,7 +187,7 @@ static void OPL_Mix_Callback(int chan, void *stream, int len, void *udata)
         uint64_t next_callback_time;
         uint64_t nsamples;
 
-        SDL_LockMutex(callback_queue_mutex);
+        xSemaphoreTake(callback_queue_mutex, portMAX_DELAY);
 
         // Work out the time until the next callback waiting in
         // the callback queue must be invoked.  We can then fill the
@@ -207,7 +210,7 @@ static void OPL_Mix_Callback(int chan, void *stream, int len, void *udata)
             }
         }
 
-        SDL_UnlockMutex(callback_queue_mutex);
+        xSemaphoreGive(callback_queue_mutex);
 
         // Add emulator output to buffer.
 
@@ -243,13 +246,13 @@ static void OPL_ESP32_Shutdown(void)
 
     if (callback_mutex != NULL)
     {
-        SDL_DestroyMutex(callback_mutex);
+        vSemaphoreDelete(callback_mutex);
         callback_mutex = NULL;
     }
 
     if (callback_queue_mutex != NULL)
     {
-        SDL_DestroyMutex(callback_queue_mutex);
+        vSemaphoreDelete(callback_queue_mutex);
         callback_queue_mutex = NULL;
     }
 }
@@ -343,8 +346,8 @@ static int OPL_ESP32_Init(unsigned int port_base)
     OPL3_Reset(&opl_chip, mixing_freq);
     opl_opl3mode = 0;
 
-    callback_mutex = SDL_CreateMutex();
-    callback_queue_mutex = SDL_CreateMutex();
+    callback_mutex = xSemaphoreCreateMutex();
+    callback_queue_mutex = xSemaphoreCreateMutex();
 
     // Set postmix that adds the OPL music. This is deliberately done
     // as a postmix and not using Mix_HookMusic() as the latter disables
@@ -458,27 +461,27 @@ static void OPL_ESP32_PortWrite(opl_port_t port, unsigned int value)
 static void OPL_ESP32_SetCallback(uint64_t us, opl_callback_t callback,
                                 void *data)
 {
-    SDL_LockMutex(callback_queue_mutex);
+    xSemaphoreTake(callback_queue_mutex, portMAX_DELAY);
     OPL_Queue_Push(callback_queue, callback, data,
                    current_time - pause_offset + us);
-    SDL_UnlockMutex(callback_queue_mutex);
+    xSemaphoreGive(callback_queue_mutex);
 }
 
 static void OPL_ESP32_ClearCallbacks(void)
 {
-    SDL_LockMutex(callback_queue_mutex);
+    xSemaphoreTake(callback_queue_mutex, portMAX_DELAY);
     OPL_Queue_Clear(callback_queue);
-    SDL_UnlockMutex(callback_queue_mutex);
+    xSemaphoreGive(callback_queue_mutex);
 }
 
 static void OPL_ESP32_Lock(void)
 {
-    SDL_LockMutex(callback_mutex);
+    xSemaphoreTake(callback_mutex, portMAX_DELAY);
 }
 
 static void OPL_ESP32_Unlock(void)
 {
-    SDL_UnlockMutex(callback_mutex);
+    xSemaphoreGive(callback_mutex);
 }
 
 static void OPL_ESP32_SetPaused(int paused)
@@ -488,9 +491,9 @@ static void OPL_ESP32_SetPaused(int paused)
 
 static void OPL_ESP32_AdjustCallbacks(float factor)
 {
-    SDL_LockMutex(callback_queue_mutex);
+    xSemaphoreTake(callback_queue_mutex, portMAX_DELAY);
     OPL_Queue_AdjustCallbacks(callback_queue, current_time, factor);
-    SDL_UnlockMutex(callback_queue_mutex);
+    xSemaphoreGive(callback_queue_mutex);
 }
 
 opl_driver_t opl_esp32_driver =

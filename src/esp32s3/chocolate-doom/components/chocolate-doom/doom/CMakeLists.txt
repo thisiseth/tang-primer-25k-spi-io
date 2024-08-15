@@ -76,15 +76,8 @@ endif()
 
 # Check for FluidSynth.
 find_package(FluidSynth 2.2.0)
-
-if (NOT ESP32_DOOM)
-    if(FluidSynth_FOUND AND ENABLE_SDL2_MIXER)
-        set(HAVE_FLUIDSYNTH TRUE)
-    endif()
-else()
-    if(FluidSynth_FOUND)
-        set(HAVE_FLUIDSYNTH TRUE)
-    endif()
+if(FluidSynth_FOUND AND ENABLE_SDL2_MIXER)
+    set(HAVE_FLUIDSYNTH TRUE)
 endif()
 
 find_package(m)

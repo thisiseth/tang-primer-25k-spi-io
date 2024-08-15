@@ -29,11 +29,10 @@ if(ESP32_DOOM)
         i_joystick.h        #i_joystick.c        
                             i_swap.h
         #i_musicpack.c
-        #i_oplmusic.c
+        i_oplmusic.c
         #i_pcsound.c
         #i_sdlmusic.c
         #i_sdlsound.c
-        i_esp32music.c
         i_esp32sound.c
         i_sound.c           i_sound.h
         i_timer.h           i_timer.c
@@ -89,21 +88,7 @@ if(ESP32_DOOM)
 
     set(EXTRA_LIBS textscreen opl idf::freertos idf::esp_timer idf::fpga_driver)
 
-    if(ENABLE_SDL2_MIXER)
-        list(APPEND EXTRA_LIBS SDL2_mixer::SDL2_mixer)
-    endif()
-    if(ENABLE_SDL2_NET)
-        list(APPEND EXTRA_LIBS SDL2_net::SDL2_net)
-    endif()
-    if(SampleRate_FOUND)
-        list(APPEND EXTRA_LIBS SampleRate::samplerate)
-    endif()
-    if(PNG_FOUND)
-        list(APPEND EXTRA_LIBS PNG::PNG)
-    endif()
-    if(FluidSynth_FOUND)
-        list(APPEND EXTRA_LIBS FluidSynth::libfluidsynth)
-    endif()
+    list(APPEND EXTRA_LIBS SampleRate::samplerate)
 
     set(GAME_INCLUDE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/../")
 
