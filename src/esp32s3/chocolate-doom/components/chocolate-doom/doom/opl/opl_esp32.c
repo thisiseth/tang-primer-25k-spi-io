@@ -33,7 +33,7 @@
 #include "freertos/freertos.h"
 #include "freertos/semphr.h"
 
-#define MAX_SOUND_SLICE_TIME 1 /* ms */
+#include "fpga_driver.h"
 
 typedef struct
 {
@@ -62,7 +62,7 @@ static uint64_t current_time;
 
 // If non-zero, playback is currently paused.
 
-static int opl_sdl_paused;
+static int opl_esp32_paused;
 
 // Time offset (in us) due to the fact that callbacks
 // were previously paused.
@@ -74,10 +74,6 @@ static uint64_t pause_offset;
 static opl3_chip opl_chip;
 static int opl_opl3mode;
 
-// Temporary mixing buffer used by the mixing callback.
-
-static uint8_t *mix_buffer = NULL;
-
 // Register number that was written.
 
 static int register_num = 0;
@@ -86,20 +82,6 @@ static int register_num = 0;
 
 static opl_timer_t timer1 = { 12500, 0, 0, 0 };
 static opl_timer_t timer2 = { 3125, 0, 0, 0 };
-
-// SDL parameters.
-
-static int sdl_was_initialized = 0;
-static int mixing_freq, mixing_channels;
-static Uint16 mixing_format;
-
-static int SDLIsInitialized(void)
-{
-    int freq, channels;
-    Uint16 format;
-
-    return Mix_QuerySpec(&freq, &format, &channels);
-}
 
 // Advance time by the specified number of samples, invoking any
 // callback functions as appropriate.
@@ -114,10 +96,10 @@ static void AdvanceTime(unsigned int nsamples)
 
     // Advance time.
 
-    us = ((uint64_t) nsamples * OPL_SECOND) / mixing_freq;
+    us = ((uint64_t) nsamples * OPL_SECOND) / FPGA_DRIVER_AUDIO_SAMPLE_RATE;
     current_time += us;
 
-    if (opl_sdl_paused)
+    if (opl_esp32_paused)
     {
         pause_offset += us;
     }
@@ -158,31 +140,26 @@ static void AdvanceTime(unsigned int nsamples)
 
 static void FillBuffer(uint8_t *buffer, unsigned int nsamples)
 {
-    // This seems like a reasonable assumption.  mix_buffer is
-    // 1 second long, which should always be much longer than the
-    // SDL mix buffer.
-    assert(nsamples < mixing_freq);
+    assert(nsamples < FPGA_DRIVER_AUDIO_BUFFER_WRITE_MAX_SAMPLES);
 
-    // OPL output is generated into temporary buffer and then mixed
-    // (to avoid overflows etc.)
-    OPL3_GenerateStream(&opl_chip, (Bit16s *) mix_buffer, nsamples);
-    SDL_MixAudioFormat(buffer, mix_buffer, AUDIO_S16SYS, nsamples * 4,
-                       SDL_MIX_MAXVOLUME);
+    OPL3_GenerateStream(&opl_chip, (Bit16s *) buffer, nsamples);
+    //SDL_MixAudioFormat(buffer, mix_buffer, AUDIO_S16SYS, nsamples * 4,
+    //                   SDL_MIX_MAXVOLUME);
 }
 
 // Callback function to fill a new sound buffer:
 
-static void OPL_Mix_Callback(int chan, void *stream, int len, void *udata)
+static void OPL_Audio_Callback(uint32_t *buffer, int *sampleCount, int maxSampleCount)
 {
-    unsigned int filled, buffer_samples;
-    Uint8 *buffer = (Uint8*)stream;
+    unsigned int filled;
+    uint8_t *buffer8;
 
     // Repeatedly call the OPL emulator update function until the buffer is
     // full.
     filled = 0;
-    buffer_samples = len / 4;
+    buffer8 = (uint8_t*)buffer;
 
-    while (filled < buffer_samples)
+    while (filled < maxSampleCount)
     {
         uint64_t next_callback_time;
         uint64_t nsamples;
@@ -193,28 +170,24 @@ static void OPL_Mix_Callback(int chan, void *stream, int len, void *udata)
         // the callback queue must be invoked.  We can then fill the
         // buffer with this many samples.
 
-        if (opl_sdl_paused || OPL_Queue_IsEmpty(callback_queue))
-        {
-            nsamples = buffer_samples - filled;
-        }
+        if (opl_esp32_paused || OPL_Queue_IsEmpty(callback_queue))
+            nsamples = maxSampleCount - filled;
         else
         {
             next_callback_time = OPL_Queue_Peek(callback_queue) + pause_offset;
 
-            nsamples = (next_callback_time - current_time) * mixing_freq;
+            nsamples = (next_callback_time - current_time) * FPGA_DRIVER_AUDIO_SAMPLE_RATE;
             nsamples = (nsamples + OPL_SECOND - 1) / OPL_SECOND;
 
-            if (nsamples > buffer_samples - filled)
-            {
-                nsamples = buffer_samples - filled;
-            }
+            if (nsamples > maxSampleCount - filled)
+                nsamples = maxSampleCount - filled;
         }
 
         xSemaphoreGive(callback_queue_mutex);
 
         // Add emulator output to buffer.
 
-        FillBuffer(buffer + filled * 4, nsamples);
+        FillBuffer(buffer8 + filled * 4, nsamples);
         filled += nsamples;
 
         // Invoke callbacks for this point in time.
@@ -225,24 +198,7 @@ static void OPL_Mix_Callback(int chan, void *stream, int len, void *udata)
 
 static void OPL_ESP32_Shutdown(void)
 {
-    Mix_HookMusic(NULL, NULL);
-
-    if (sdl_was_initialized)
-    {
-        Mix_CloseAudio();
-        SDL_QuitSubSystem(SDL_INIT_AUDIO);
-        OPL_Queue_Destroy(callback_queue);
-        free(mix_buffer);
-        sdl_was_initialized = 0;
-    }
-
-/*
-    if (opl_chip != NULL)
-    {
-        OPLDestroy(opl_chip);
-        opl_chip = NULL;
-    }
-    */
+    fpga_driver_register_audio_requested_cb(NULL);
 
     if (callback_mutex != NULL)
     {
@@ -257,64 +213,9 @@ static void OPL_ESP32_Shutdown(void)
     }
 }
 
-static unsigned int GetSliceSize(void)
-{
-    int limit;
-    int n;
-
-    limit = (opl_sample_rate * MAX_SOUND_SLICE_TIME) / 1000;
-
-    // Try all powers of two, not exceeding the limit.
-
-    for (n=0;; ++n)
-    {
-        // 2^n <= limit < 2^n+1 ?
-
-        if ((1 << (n + 1)) > limit)
-        {
-            return (1 << n);
-        }
-    }
-
-    // Should never happen?
-
-    return 1024;
-}
-
 static int OPL_ESP32_Init(unsigned int port_base)
 {
-    // Check if SDL_mixer has been opened already
-    // If not, we must initialize it now
-
-    if (!SDLIsInitialized())
-    {
-        if (SDL_Init(SDL_INIT_AUDIO) < 0)
-        {
-            fprintf(stderr, "Unable to set up sound.\n");
-            return 0;
-        }
-
-        if (Mix_OpenAudioDevice(opl_sample_rate, AUDIO_S16SYS, 2, GetSliceSize(), NULL, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE) < 0)
-        {
-            fprintf(stderr, "Error initialising SDL_mixer: %s\n", Mix_GetError());
-
-            SDL_QuitSubSystem(SDL_INIT_AUDIO);
-            return 0;
-        }
-
-        SDL_PauseAudio(0);
-
-        // When this module shuts down, it has the responsibility to 
-        // shut down SDL.
-
-        sdl_was_initialized = 1;
-    }
-    else
-    {
-        sdl_was_initialized = 0;
-    }
-
-    opl_sdl_paused = 0;
+    opl_esp32_paused = 0;
     pause_offset = 0;
 
     // Queue structure of callbacks to invoke.
@@ -322,37 +223,15 @@ static int OPL_ESP32_Init(unsigned int port_base)
     callback_queue = OPL_Queue_Create();
     current_time = 0;
 
-    // Get the mixer frequency, format and number of channels.
-
-    Mix_QuerySpec(&mixing_freq, &mixing_format, &mixing_channels);
-
-    // Only supports AUDIO_S16SYS
-
-    if (mixing_format != AUDIO_S16SYS || mixing_channels != 2)
-    {
-        fprintf(stderr, 
-                "OPL_SDL only supports native signed 16-bit LSB, "
-                "stereo format!\n");
-
-        OPL_SDL_Shutdown();
-        return 0;
-    }
-
-    // Mix buffer: four bytes per sample (16 bits * 2 channels):
-    mix_buffer = malloc(mixing_freq * 4);
-
     // Create the emulator structure:
 
-    OPL3_Reset(&opl_chip, mixing_freq);
+    OPL3_Reset(&opl_chip, FPGA_DRIVER_AUDIO_SAMPLE_RATE);
     opl_opl3mode = 0;
 
     callback_mutex = xSemaphoreCreateMutex();
     callback_queue_mutex = xSemaphoreCreateMutex();
 
-    // Set postmix that adds the OPL music. This is deliberately done
-    // as a postmix and not using Mix_HookMusic() as the latter disables
-    // normal SDL_mixer music mixing.
-    Mix_RegisterEffect(MIX_CHANNEL_POST, OPL_Mix_Callback, NULL, NULL);
+    fpga_driver_register_audio_requested_cb(OPL_Audio_Callback);
 
     return 1;
 }
@@ -486,7 +365,7 @@ static void OPL_ESP32_Unlock(void)
 
 static void OPL_ESP32_SetPaused(int paused)
 {
-    opl_sdl_paused = paused;
+    opl_esp32_paused = paused;
 }
 
 static void OPL_ESP32_AdjustCallbacks(float factor)

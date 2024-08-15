@@ -42,5 +42,5 @@ void app_main(void)
     if (!fpga_driver_init(&driver_config))
         printf("failed to init driver\n");
 
-    xTaskCreatePinnedToCore(user_task, "user_task", 4096, NULL, tskIDLE_PRIORITY+1, NULL, 1);
+    xTaskCreatePinnedToCore(user_task, "user_task", 65536, NULL, tskIDLE_PRIORITY+1, NULL, 1);
 }

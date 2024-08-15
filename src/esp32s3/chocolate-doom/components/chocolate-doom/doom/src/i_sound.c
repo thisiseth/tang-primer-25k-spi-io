@@ -82,7 +82,7 @@ static int snd_mport = 0;
 
 static const sound_module_t *sound_modules[] =
 {
-    &sound_esp32_module,
+    //&sound_esp32_module,
     NULL,
 };
 
@@ -90,7 +90,7 @@ static const sound_module_t *sound_modules[] =
 
 static const music_module_t *music_modules[] =
 {
-    &music_esp32_module,
+    &music_opl_module,
     NULL,
 };
 

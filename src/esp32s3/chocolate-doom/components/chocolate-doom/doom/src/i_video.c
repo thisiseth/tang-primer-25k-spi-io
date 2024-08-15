@@ -130,6 +130,7 @@ int usegamma = 0;
 unsigned int joywait = 0;
 
 boolean screensaver_mode = false;
+boolean screenvisible = true;
 
 // Set the variable controlling FPS dots.
 
@@ -400,6 +401,18 @@ void I_BindVideoVariables(void)
 }
 
 void I_CheckIsScreensaver(void)
+{
+}
+
+void I_SetGrabMouseCallback(grabmouse_callback_t func)
+{
+}
+
+void I_SetWindowTitle(const char *title)
+{
+}
+
+void I_RegisterWindowIcon(const unsigned int *icon, int width, int height)
 {
 }
 

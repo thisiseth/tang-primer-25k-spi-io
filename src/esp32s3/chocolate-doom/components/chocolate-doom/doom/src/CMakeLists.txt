@@ -33,7 +33,7 @@ if(ESP32_DOOM)
         #i_pcsound.c
         #i_sdlmusic.c
         #i_sdlsound.c
-        i_esp32sound.c
+        #i_esp32sound.c <--- uncomment when implemented
         i_sound.c           i_sound.h
         i_timer.h           i_timer.c
         i_video.c           i_video.h
@@ -86,9 +86,7 @@ if(ESP32_DOOM)
     set(SOURCE_FILES ${COMMON_SOURCE_FILES} ${GAME_SOURCE_FILES})
     set(SOURCE_FILES_WITH_DEH ${SOURCE_FILES} ${DEHACKED_SOURCE_FILES})
 
-    set(EXTRA_LIBS textscreen opl idf::freertos idf::esp_timer idf::fpga_driver)
-
-    list(APPEND EXTRA_LIBS SampleRate::samplerate)
+    set(EXTRA_LIBS opl SampleRate::samplerate idf::freertos idf::esp_timer idf::fpga_driver)
 
     set(GAME_INCLUDE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/../")
 

@@ -84,22 +84,21 @@ extern unsigned int joywait;
 
 extern int usemouse;
 
-#ifndef ESP32_DOOM
 typedef boolean (*grabmouse_callback_t)(void);
 
+extern boolean screenvisible;
+
 void I_SetGrabMouseCallback(grabmouse_callback_t func);
-
 void I_SetWindowTitle(const char *title);
+void I_RegisterWindowIcon(const unsigned int *icon, int width, int height);
 
-void I_CheckIsScreensaver(void);
+#ifndef ESP32_DOOM
 
 void I_InitWindowTitle(void);
-void I_RegisterWindowIcon(const unsigned int *icon, int width, int height);
 void I_InitWindowIcon(void);
 
 extern int aspect_ratio_correct;
 extern char *video_driver;
-extern boolean screenvisible;
 extern boolean screensaver_mode;
 extern int fullscreen;
 extern int integer_scaling;

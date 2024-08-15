@@ -15,6 +15,8 @@ if (ESP32_DOOM)
                             INTERFACE "."
                             PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/../")
 
+    target_link_libraries(opl idf::freertos idf::fpga_driver)
+    
 else()
 
     add_library(opl STATIC

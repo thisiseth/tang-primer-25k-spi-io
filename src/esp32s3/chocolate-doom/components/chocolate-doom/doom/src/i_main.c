@@ -42,7 +42,7 @@ void D_DoomMain (void);
 
 #ifdef ESP32_DOOM
 
-int main(int argc, char **argv)
+int esp32_doom_main(int argc, char **argv)
 {
     // save arguments
 

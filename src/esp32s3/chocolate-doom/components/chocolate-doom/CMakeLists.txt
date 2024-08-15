@@ -1,5 +1,6 @@
 idf_component_register(SRCS "doom_main.c" 
-                    INCLUDE_DIRS ".")
+                    INCLUDE_DIRS "."
+                    REQUIRES fpga_driver)
 
 set(ESP32_DOOM 1)
 add_compile_definitions(ESP32_DOOM=1)
