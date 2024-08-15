@@ -34,6 +34,8 @@
 #elif defined(__WATCOMC__)
 // Watcom has the same API in a different header.
 #include <direct.h>
+#elif defined(ESP32_DOOM)
+#include <dirent.h>
 #else
 #define NO_DIRENT_IMPLEMENTATION
 #endif

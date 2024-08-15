@@ -1,8 +1,8 @@
 if(ESP32_DOOM)
 
-    foreach(SUBDIR doom)
-        add_subdirectory("${SUBDIR}")
-    endforeach()
+    #foreach(SUBDIR doom)
+    #    add_subdirectory("${SUBDIR}")
+    #endforeach()
 
     set(COMMON_SOURCE_FILES
         i_main.c
@@ -83,17 +83,89 @@ if(ESP32_DOOM)
         deh_mapping.c       deh_mapping.h
         deh_text.c)
 
+    set(DOOM_SOURCE_FILES
+        doom/am_map.c        doom/am_map.h
+        doom/deh_ammo.c
+        doom/deh_bexstr.c
+        doom/deh_cheat.c
+        doom/deh_doom.c
+        doom/deh_frame.c
+        doom/deh_misc.c      doom/deh_misc.h
+        doom/deh_ptr.c
+        doom/deh_sound.c
+        doom/deh_thing.c
+        doom/deh_weapon.c
+                             doom/d_englsh.h
+        doom/d_items.c       doom/d_items.h
+        doom/d_main.c        doom/d_main.h
+        doom/d_net.c
+                             doom/doomdata.h
+        doom/doomdef.c       doom/doomdef.h
+        doom/doomstat.c      doom/doomstat.h
+                             doom/d_player.h
+        doom/dstrings.c      doom/dstrings.h
+                             doom/d_textur.h
+                             doom/d_think.h
+        doom/f_finale.c      doom/f_finale.h
+        doom/f_wipe.c        doom/f_wipe.h
+        doom/g_game.c        doom/g_game.h
+        doom/hu_lib.c        doom/hu_lib.h
+        doom/hu_stuff.c      doom/hu_stuff.h
+        doom/info.c          doom/info.h
+        doom/m_menu.c        doom/m_menu.h
+        doom/m_random.c      doom/m_random.h
+        doom/p_ceilng.c
+        doom/p_doors.c
+        doom/p_enemy.c
+        doom/p_floor.c
+        doom/p_inter.c       doom/p_inter.h
+        doom/p_lights.c
+                             doom/p_local.h
+        doom/p_map.c
+        doom/p_maputl.c
+        doom/p_mobj.c        doom/p_mobj.h
+        doom/p_plats.c
+        doom/p_pspr.c        doom/p_pspr.h
+        doom/p_saveg.c       doom/p_saveg.h
+        doom/p_setup.c       doom/p_setup.h
+        doom/p_sight.c
+        doom/p_spec.c        doom/p_spec.h
+        doom/p_switch.c
+        doom/p_telept.c
+        doom/p_tick.c        doom/p_tick.h
+        doom/p_user.c
+        doom/r_bsp.c         doom/r_bsp.h
+        doom/r_data.c        doom/r_data.h
+                             doom/r_defs.h
+        doom/r_draw.c        doom/r_draw.h
+                             doom/r_local.h
+        doom/r_main.c        doom/r_main.h
+        doom/r_plane.c       doom/r_plane.h
+        doom/r_segs.c        doom/r_segs.h
+        doom/r_sky.c         doom/r_sky.h
+                             doom/r_state.h
+        doom/r_things.c      doom/r_things.h
+        doom/s_sound.c       doom/s_sound.h
+        doom/sounds.c        doom/sounds.h
+        doom/statdump.c      doom/statdump.h
+        doom/st_lib.c        doom/st_lib.h
+        doom/st_stuff.c      doom/st_stuff.h
+        doom/wi_stuff.c      doom/wi_stuff.h)
+
     set(SOURCE_FILES ${COMMON_SOURCE_FILES} ${GAME_SOURCE_FILES})
     set(SOURCE_FILES_WITH_DEH ${SOURCE_FILES} ${DEHACKED_SOURCE_FILES})
+    set(SOURCE_FILES_WITH_DEH2 ${SOURCE_FILES_WITH_DEH} ${DOOM_SOURCE_FILES})
 
     set(EXTRA_LIBS opl SampleRate::samplerate idf::freertos idf::esp_timer idf::fpga_driver)
 
-    set(GAME_INCLUDE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/../")
+    set(GAME_INCLUDE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/../" "doom" ".")
 
-    add_library("${PROGRAM_PREFIX}doom" STATIC ${SOURCE_FILES_WITH_DEH})
+    add_library("${PROGRAM_PREFIX}doom" STATIC ${SOURCE_FILES_WITH_DEH2})
+
+    #target_link_libraries("${PROGRAM_PREFIX}doom" INTERFACE doom)
     
     target_include_directories("${PROGRAM_PREFIX}doom" PRIVATE ${GAME_INCLUDE_DIRS})
-    target_link_libraries("${PROGRAM_PREFIX}doom" doom ${EXTRA_LIBS})
+    target_link_libraries("${PROGRAM_PREFIX}doom" PUBLIC ${EXTRA_LIBS})
 
 else() #not esp32_doom
 
