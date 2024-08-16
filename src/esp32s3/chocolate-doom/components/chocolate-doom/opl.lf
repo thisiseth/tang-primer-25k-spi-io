@@ -1,0 +1,4 @@
+[mapping:opl]
+archive: libopl.a
+entries:
+    opl3 (noflash)

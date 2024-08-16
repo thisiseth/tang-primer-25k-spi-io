@@ -213,6 +213,10 @@ void fpga_driver_present_frame(uint8_t **palette, uint8_t **framebuffer, fpga_dr
                 done = true;
             }
         }
+        else
+        {
+            ESP_LOGE(TAG, "unknown vsync value");
+        }
 
         taskEXIT_CRITICAL(&driver_spinlock);
 
@@ -300,11 +304,11 @@ static void IRAM_ATTR driver_task_function_main(void *arg)
             taskENTER_CRITICAL(&driver_spinlock);
 
             int buffer_to_present = framebuffer_idx_to_present;
-            present_in_progress = true;
+            present_in_progress = framebuffer_idx_to_present >= 0;
 
             taskEXIT_CRITICAL(&driver_spinlock);
 
-            if (buffer_to_present >= 0)
+            if (present_in_progress)
             {   
                 FPGA_DRIVER_ERROR_CHECK(fpga_api_gpu_set_palette(&qspi, buffer_to_present ? palette1 : palette0));
                 FPGA_DRIVER_ERROR_CHECK(fpga_api_gpu_framebuffer_write(&qspi, 0, buffer_to_present ? framebuffer1 : framebuffer0, FPGA_DRIVER_FRAMEBUFFER_SIZE_BYTES));

@@ -162,7 +162,7 @@ void user_task(void *arg)
                     framebuffer[PIXEL_IDX(cur_x + i, cur_y + j)] = (!i & !j) ? 255 : 0;
 
         ++temp1;
-
+EXT_RAM_ATTR
         //fpga_driver_present_frame(&palette, &framebuffer, FPGA_DRIVER_VSYNC_DONT_WAIT_OVERWRITE_PREVIOUS);
         fpga_driver_present_frame(&palette, &framebuffer, FPGA_DRIVER_VSYNC_WAIT_IF_PREVIOUS_NOT_PRESENTED);
         fpga_driver_hid_get_status(&hid_status);

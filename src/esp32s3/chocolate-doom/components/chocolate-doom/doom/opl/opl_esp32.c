@@ -140,7 +140,7 @@ static void AdvanceTime(unsigned int nsamples)
 
 static void FillBuffer(uint8_t *buffer, unsigned int nsamples)
 {
-    assert(nsamples < FPGA_DRIVER_AUDIO_BUFFER_WRITE_MAX_SAMPLES);
+    assert(nsamples <= FPGA_DRIVER_AUDIO_BUFFER_WRITE_MAX_SAMPLES);
 
     OPL3_GenerateStream(&opl_chip, (Bit16s *) buffer, nsamples);
     //SDL_MixAudioFormat(buffer, mix_buffer, AUDIO_S16SYS, nsamples * 4,
@@ -194,6 +194,8 @@ static void OPL_Audio_Callback(uint32_t *buffer, int *sampleCount, int maxSample
 
         AdvanceTime(nsamples);
     }
+
+    *sampleCount = maxSampleCount;
 }
 
 static void OPL_ESP32_Shutdown(void)

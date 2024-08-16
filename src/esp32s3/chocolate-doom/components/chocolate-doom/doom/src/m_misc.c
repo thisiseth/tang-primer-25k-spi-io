@@ -581,7 +581,7 @@ char *M_TempFile(const char *s)
 #else
     // In Unix, just use /tmp.
 
-    tempdir = "/tmp";
+    tempdir = "/flash/tmp";
 #endif
 
     return M_StringJoin(tempdir, DIR_SEPARATOR_S, s, NULL);

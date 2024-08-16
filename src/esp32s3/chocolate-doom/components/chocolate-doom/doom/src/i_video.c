@@ -58,7 +58,7 @@
 static uint8_t *fpga_framebuffer;
 static uint8_t *fpga_palette;
 
-static DMA_ATTR uint8_t spare_framebuffer[320*200];
+static EXT_RAM_BSS_ATTR uint8_t spare_framebuffer[320*200];
 
 static RingbufHandle_t hid_ringbuf;
 
@@ -79,10 +79,6 @@ int usemouse = 1;
 // Fullscreen mode, 0x0 for SDL_WINDOW_FULLSCREEN_DESKTOP.
 
 int fullscreen_width = 0, fullscreen_height = 0;
-
-// Maximum number of pixels to use for intermediate scale buffer.
-
-static int max_scaling_buffer_pixels = 16000000;
 
 // Run in full screen mode?  (int type for config code)
 
@@ -382,6 +378,9 @@ void I_InitGraphics(void)
   
     hid_ringbuf = xRingbufferCreateWithCaps((sizeof(fpga_driver_hid_event_t)+8)*128, RINGBUF_TYPE_NOSPLIT, MALLOC_CAP_INTERNAL);
 
+    if (hid_ringbuf == NULL)
+        I_Error("unable to allocate hid_ringbuf\n");
+    
     fpga_driver_register_hid_event_cb(fpga_hid_callback);
 
     initialized = true;

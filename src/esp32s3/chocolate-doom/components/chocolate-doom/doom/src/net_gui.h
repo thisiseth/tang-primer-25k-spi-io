@@ -23,7 +23,11 @@
 
 #include "doomtype.h"
 
+#ifdef ESP32_DOOM
+    #define NET_WaitForLaunch() ((void)0)
+#else
 extern void NET_WaitForLaunch(void);
+#endif
 
 #endif /* #ifndef NET_GUI_H */
 

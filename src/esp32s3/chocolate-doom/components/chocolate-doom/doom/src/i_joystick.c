@@ -15,10 +15,11 @@
 //       SDL Joystick code.
 //
 
-
-#include "SDL.h"
-#include "SDL_joystick.h"
-#include "SDL_gamecontroller.h"
+#ifndef ESP32_DOOM
+    #include "SDL.h"
+    #include "SDL_joystick.h"
+    #include "SDL_gamecontroller.h"
+#endif
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -32,6 +33,45 @@
 #include "m_config.h"
 #include "m_fixed.h"
 #include "m_misc.h"
+
+#ifdef ESP32_DOOM
+
+int use_analog = 0;
+
+int joystick_turn_sensitivity = 10;
+int joystick_move_sensitivity = 10;
+int joystick_look_sensitivity = 10;
+
+
+void I_ShutdownGamepad(void)
+{
+}
+
+void I_InitGamepad(void)
+{
+}
+
+void I_UpdateGamepad(void)
+{
+}
+
+void I_ShutdownJoystick(void)
+{
+}
+
+void I_InitJoystick(void)
+{
+}
+
+void I_UpdateJoystick(void)
+{
+}
+
+void I_BindJoystickVariables(void)
+{
+}
+
+#else
 
 static SDL_GameController *gamepad = NULL;
 static SDL_Joystick *joystick = NULL;
@@ -824,3 +864,4 @@ void I_BindJoystickVariables(void)
     }
 }
 
+#endif

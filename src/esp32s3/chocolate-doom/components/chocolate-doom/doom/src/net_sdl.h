@@ -20,6 +20,10 @@
 
 #include "net_defs.h"
 
+#ifdef ESP32_DOOM
+    #define net_sdl_module net_esp32_module
+#endif
+
 extern net_module_t net_sdl_module;
 
 #endif /* #ifndef NET_SDL_H */

@@ -2068,7 +2068,6 @@ static default_t extra_defaults_list[] =
 
 #ifdef ESP32_DOOM
 
-
 static default_collection_t extra_defaults =
 {
     extra_defaults_list,
@@ -2618,7 +2617,7 @@ float M_GetFloatVariable(const char *name)
 
 static char *GetDefaultConfigDir(void)
 {
-    return M_StringDuplicate("/config/");
+    return M_StringDuplicate("/flash/config/");
 }
 
 // 
@@ -2723,7 +2722,7 @@ char *M_GetAutoloadDir(const char *iwadname)
 
     if (autoload_path == NULL || strlen(autoload_path) == 0)
     {
-        autoload_path = "/autoload/";
+        autoload_path = "/flash/autoload/";
     }
 
     M_MakeDirectory(autoload_path);

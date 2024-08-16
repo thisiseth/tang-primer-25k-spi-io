@@ -31,17 +31,6 @@
 int		myargc;
 char**		myargv;
 
-#ifndef ESP32_DOOM
-
-#include "SDL_stdinc.h"
-
-//
-// M_CheckParm
-// Checks for the given parameter
-// in the program's command line arguments.
-// Returns the argument number (1 to argc-1)
-// or 0 if not present
-//
 
 int M_CheckParmWithArgs(const char *check, int num_args)
 {
@@ -59,13 +48,6 @@ int M_CheckParmWithArgs(const char *check, int num_args)
     return 0;
 }
 
-//
-// M_ParmExists
-//
-// Returns true if the given parameter exists in the program's command
-// line arguments, false if not.
-//
-
 boolean M_ParmExists(const char *check)
 {
     return M_CheckParm(check) != 0;
@@ -75,6 +57,26 @@ int M_CheckParm(const char *check)
 {
     return M_CheckParmWithArgs(check, 0);
 }
+
+#ifndef ESP32_DOOM
+
+#include "SDL_stdinc.h"
+
+//
+// M_CheckParm
+// Checks for the given parameter
+// in the program's command line arguments.
+// Returns the argument number (1 to argc-1)
+// or 0 if not present
+//
+
+//
+// M_ParmExists
+//
+// Returns true if the given parameter exists in the program's command
+// line arguments, false if not.
+//
+
 
 #define MAXARGVS        100
 

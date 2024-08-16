@@ -30,22 +30,6 @@ extern  char**	myargv;
 
 #ifdef ESP32_DOOM
 
-static inline int M_CheckParm(const char *check) {
-    return 0;
-}
-static inline int M_CheckParmWithArgs(const char *check, int num_args) {
-    return 0;
-}
-static inline boolean M_ParmExists(const char *check)
-{
-    return M_CheckParm(check) != 0;
-}
-
-#else
-
-extern char *exedir;
-void M_SetExeDir(void);
-
 // Returns the position of the given parameter
 // in the arg list (0 if not found).
 int M_CheckParm (const char* check);
@@ -54,12 +38,17 @@ int M_CheckParm (const char* check);
 // following the specified argument.
 int M_CheckParmWithArgs(const char *check, int num_args);
 
-void M_FindResponseFile(void);
-void M_AddLooseFiles(void);
-
 // Parameter has been specified?
 
 boolean M_ParmExists(const char *check);
+
+#else
+
+extern char *exedir;
+void M_SetExeDir(void);
+
+void M_FindResponseFile(void);
+void M_AddLooseFiles(void);
 
 // Get name of executable used to run this program:
 

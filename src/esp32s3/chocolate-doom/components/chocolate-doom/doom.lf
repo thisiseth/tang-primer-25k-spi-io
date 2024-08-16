@@ -1,0 +1,4 @@
+[mapping:doom]
+archive: libesp-idf-chocolate-doom.a
+entries:
+    * (extram_bss)
