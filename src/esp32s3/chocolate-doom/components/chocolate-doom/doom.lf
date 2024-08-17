@@ -1,4 +1,5 @@
 [mapping:doom]
 archive: libesp-idf-chocolate-doom.a
 entries:
+    i_oplmusic (noflash)
     * (extram_bss)

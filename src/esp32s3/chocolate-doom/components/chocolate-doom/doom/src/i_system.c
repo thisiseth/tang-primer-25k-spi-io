@@ -356,6 +356,32 @@ void I_Error (const char *error, ...)
 // I_Realloc
 //
 
+#ifdef ESP32_DOOM
+
+extern boolean ClearCache(int size);
+
+void *I_Realloc(void *ptr, size_t size)
+{
+    void *new_ptr;
+
+    new_ptr = realloc(ptr, size);
+
+    if (size != 0 && new_ptr == NULL)
+    {
+        ClearCache(size*2);
+        new_ptr = realloc(ptr, size);
+    }
+
+    if (size != 0 && new_ptr == NULL)
+    {
+        I_Error ("I_Realloc: failed on reallocation of %zu bytes", size);
+    }
+
+    return new_ptr;
+}
+
+#else
+
 void *I_Realloc(void *ptr, size_t size)
 {
     void *new_ptr;
@@ -369,6 +395,8 @@ void *I_Realloc(void *ptr, size_t size)
 
     return new_ptr;
 }
+
+#endif
 
 //
 // Read Access Violation emulation.

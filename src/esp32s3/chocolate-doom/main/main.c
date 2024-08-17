@@ -25,6 +25,9 @@ void user_task(void *arg)
 {
     doom_main();
 
+    if (esp_vfs_fat_spiflash_unmount_rw_wl(flash_rw_base, flash_rw_wl_handle) != ESP_OK)
+        ESP_LOGE(TAG, "unable to unmount flash_rw");
+
     vTaskDelete(NULL);
 }
 

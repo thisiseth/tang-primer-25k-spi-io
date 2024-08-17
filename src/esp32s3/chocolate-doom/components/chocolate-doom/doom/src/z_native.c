@@ -172,7 +172,11 @@ void Z_Free (void* ptr)
 //
 // Returns true if any blocks were freed.
 
+#ifdef ESP32_DOOM
+boolean ClearCache(int size)
+#else
 static boolean ClearCache(int size)
+#endif
 {
     memblock_t *block;
     memblock_t *next_block;
