@@ -21,9 +21,14 @@ static const char TAG[] = "main";
 const char flash_rw_base[] = "/flash";
 static wl_handle_t flash_rw_wl_handle = WL_INVALID_HANDLE;
 
+static esp_partition_mmap_handle_t wad_mmap_handle;
+static const void *wad_mmap;
+
 void user_task(void *arg)
 {
-    doom_main();
+    doom_main("/"ESP32_DOOM_WAD_NAME, ESP32_DOOM_WAD_SIZE, wad_mmap);
+
+    esp_partition_munmap(wad_mmap_handle);
 
     if (esp_vfs_fat_spiflash_unmount_rw_wl(flash_rw_base, flash_rw_wl_handle) != ESP_OK)
         ESP_LOGE(TAG, "unable to unmount flash_rw");
@@ -80,6 +85,20 @@ void app_main(void)
     if (err != ESP_OK) 
     {
         ESP_LOGE(TAG, "Failed to mount FATFS (%s)", esp_err_to_name(err));
+        return;
+    }
+
+    const esp_partition_t *partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_UNDEFINED, "wads");
+
+    if (partition == NULL) 
+    {
+        ESP_LOGE(TAG, "Failed to find wads partition");
+        return;
+    }
+
+    if (esp_partition_mmap(partition, 0, ESP32_DOOM_WAD_SIZE, ESP_PARTITION_MMAP_DATA, &wad_mmap, &wad_mmap_handle) != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to mmap wads partition");
         return;
     }
 

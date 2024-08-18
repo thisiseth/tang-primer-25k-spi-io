@@ -368,7 +368,7 @@ void *I_Realloc(void *ptr, size_t size)
 
     if (size != 0 && new_ptr == NULL)
     {
-        ClearCache(size*2);
+        ClearCache(size*2); //try to clear z_native cached stuff and free a bit more
         new_ptr = realloc(ptr, size);
     }
 

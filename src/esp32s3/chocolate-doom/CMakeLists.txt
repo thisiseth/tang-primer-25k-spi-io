@@ -6,6 +6,7 @@ cmake_minimum_required(VERSION 3.5)
 
 list(APPEND SDKCONFIG_DEFAULTS "sdkconfig.defaults")
 
+#uncomment one you need
 list(APPEND SDKCONFIG_DEFAULTS "sdkconfig.defaults.n32r8")
 #list(APPEND SDKCONFIG_DEFAULTS "sdkconfig.defaults.n8r2")
 

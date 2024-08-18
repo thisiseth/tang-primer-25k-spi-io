@@ -50,6 +50,9 @@ extern wad_file_class_t win32_wad_file;
 extern wad_file_class_t posix_wad_file;
 #endif
 
+#ifdef ESP32_DOOM
+extern wad_file_class_t esp32_wad_file;
+#endif
 
 struct _wad_file_s
 {

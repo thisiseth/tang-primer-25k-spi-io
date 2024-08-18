@@ -3,4 +3,5 @@
 nvs,      data, nvs,     0x9000,  0x6000,
 phy_init, data, phy,     0xf000,  0x1000,
 factory,  app,  factory, 0x10000, 1500K,
-storage,  data, fat,     ,        6M,
+storage,  data, fat,     ,        1M,
+wads,     data, undefined,,       5M,         readonly 

@@ -136,8 +136,8 @@ wad_file_t *W_AddFile (const char *filename)
 
     if (wad_file == NULL)
     {
-	printf (" couldn't open %s\n", filename);
-	return NULL;
+        printf (" couldn't open %s\n", filename);
+        return NULL;
     }
 
     if (strcasecmp(filename+strlen(filename)-3 , "wad" ) )
@@ -367,8 +367,6 @@ void W_ReadLump(lumpindex_t lump, void *dest)
 }
 
 
-
-
 //
 // W_CacheLumpNum
 //
@@ -380,9 +378,6 @@ void W_ReadLump(lumpindex_t lump, void *dest)
 // PU_STATIC, it should be released back using W_ReleaseLumpNum
 // when no longer needed (do not use Z_ChangeTag).
 //
-
-#ifdef ESP32_DOOM
-
 void *W_CacheLumpNum(lumpindex_t lumpnum, int tag)
 {
     byte *result;
@@ -418,58 +413,12 @@ void *W_CacheLumpNum(lumpindex_t lumpnum, int tag)
         // Not yet loaded, so load it now
 
         lump->cache = Z_Malloc(W_LumpLength(lumpnum), tag, &lump->cache);
-	W_ReadLump (lumpnum, lump->cache);
+	    W_ReadLump (lumpnum, lump->cache);
         result = lump->cache;
     }
 	
     return result;
 }
-
-#else
-
-void *W_CacheLumpNum(lumpindex_t lumpnum, int tag)
-{
-    byte *result;
-    lumpinfo_t *lump;
-
-    if ((unsigned)lumpnum >= numlumps)
-    {
-	I_Error ("W_CacheLumpNum: %i >= numlumps", lumpnum);
-    }
-
-    lump = lumpinfo[lumpnum];
-
-    // Get the pointer to return.  If the lump is in a memory-mapped
-    // file, we can just return a pointer to within the memory-mapped
-    // region.  If the lump is in an ordinary file, we may already
-    // have it cached; otherwise, load it into memory.
-
-    if (lump->wad_file->mapped != NULL)
-    {
-        // Memory mapped file, return from the mmapped region.
-
-        result = lump->wad_file->mapped + lump->position;
-    }
-    else if (lump->cache != NULL)
-    {
-        // Already cached, so just switch the zone tag.
-
-        result = lump->cache;
-        Z_ChangeTag(lump->cache, tag);
-    }
-    else
-    {
-        // Not yet loaded, so load it now
-
-        lump->cache = Z_Malloc(W_LumpLength(lumpnum), tag, &lump->cache);
-	W_ReadLump (lumpnum, lump->cache);
-        result = lump->cache;
-    }
-	
-    return result;
-}
-
-#endif
 
 //
 // W_CacheLumpName
@@ -504,7 +453,11 @@ void W_ReleaseLumpNum(lumpindex_t lumpnum)
     {
         // Memory-mapped file, so nothing needs to be done here.
     }
+#ifdef ESP32_DOOM
+    else if (lump->cache != NULL)
+#else
     else
+#endif
     {
         Z_ChangeTag(lump->cache, PU_CACHE);
     }

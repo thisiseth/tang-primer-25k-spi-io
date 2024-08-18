@@ -73,10 +73,14 @@ if(ESP32_DOOM)
         w_wad.c             w_wad.h
         w_file.c            w_file.h
         w_file_stdc.c
-        w_file_posix.c
-        w_file_win32.c
+        #w_file_posix.c
+        #w_file_win32.c
+        w_file_esp32.c
         w_merge.c           w_merge.h
-        z_native.c          z_zone.h)
+                            z_zone.h
+        #z_zone.c
+        z_native.c
+        )
 
     set(DEHACKED_SOURCE_FILES
         deh_defs.h

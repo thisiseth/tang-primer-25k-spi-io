@@ -34,6 +34,9 @@ static wad_file_class_t *wad_file_classes[] =
 #ifdef HAVE_MMAP
     &posix_wad_file,
 #endif
+#ifdef ESP32_DOOM
+    &esp32_wad_file,
+#endif
     &stdc_wad_file,
 };
 
@@ -49,10 +52,12 @@ wad_file_t *W_OpenFile(const char *path)
     // directly into memory.
     //
 
+#ifndef ESP32_DOOM
     if (!M_CheckParm("-mmap"))
     {
         return stdc_wad_file.OpenFile(path);
     }
+#endif
 
     // Try all classes in order until we find one that works
 

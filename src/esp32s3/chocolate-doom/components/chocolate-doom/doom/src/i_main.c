@@ -42,9 +42,16 @@ void D_DoomMain (void);
 
 #ifdef ESP32_DOOM
 
-int esp32_doom_main(int argc, char **argv)
+const char *esp32_mmap_wad_name;
+uint32_t esp32_mmap_wad_size;
+const void *esp32_mmap_wad;
+
+int esp32_doom_main(int argc, const char **argv, const char *wadName, uint32_t wadSize, const void *wadMmap)
 {
     // save arguments
+    esp32_mmap_wad_name = wadName;
+    esp32_mmap_wad_size = wadSize;
+    esp32_mmap_wad = wadMmap;
 
     myargc = argc;
     myargv = malloc(argc * sizeof(char *));

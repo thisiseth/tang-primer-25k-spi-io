@@ -393,9 +393,18 @@ void M_MakeDirectory(const char *path)
 
 // Check if a file exists
 
+#ifdef ESP32_DOOM
+extern const char *esp32_mmap_wad_name;
+#endif
+
 boolean M_FileExists(const char *filename)
 {
     FILE *fstream;
+
+#ifdef ESP32_DOOM
+    if (!strcmp(filename, esp32_mmap_wad_name))
+        return true;
+#endif  
 
     fstream = M_fopen(filename, "r");
 
