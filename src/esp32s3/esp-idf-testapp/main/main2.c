@@ -13,7 +13,7 @@
 #include "fpga_qspi.h"
 #include "fpga_api_gpu.h"
 #include "fpga_driver.h"
-#include "pmod_board.h"
+#include "pmod_esp32s3.h"
 
 #define FPGA_SPI_CS0 41
 #define FPGA_SPI_CS1 39

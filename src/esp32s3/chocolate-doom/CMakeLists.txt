@@ -4,6 +4,11 @@
 # CMakeLists in this exact order for cmake to work correctly
 cmake_minimum_required(VERSION 3.5)
 
+list(APPEND SDKCONFIG_DEFAULTS "sdkconfig.defaults")
+
+list(APPEND SDKCONFIG_DEFAULTS "sdkconfig.defaults.n32r8")
+#list(APPEND SDKCONFIG_DEFAULTS "sdkconfig.defaults.n8r2")
+
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 list(APPEND EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/../esp-idf-components")

@@ -12,7 +12,7 @@
 #include "math.h"
 
 #include "fpga_driver.h"
-#include "pmod_board.h"
+#include "pmod_esp32s3.h"
 
 #define PIXEL_IDX(x, y) ((x) + (y)*FPGA_DRIVER_FRAME_WIDTH)
 #define PIXEL_INBOUNDS(x, y) ((x) >= 0 && (x) < FPGA_DRIVER_FRAME_WIDTH && (y) >= 0 && (y) < FPGA_DRIVER_FRAME_HEIGHT)

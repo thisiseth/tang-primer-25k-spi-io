@@ -1,4 +1,5 @@
 [mapping:opl]
 archive: libopl.a
 entries:
+    opl_esp32 (noflash)
     opl3 (noflash)

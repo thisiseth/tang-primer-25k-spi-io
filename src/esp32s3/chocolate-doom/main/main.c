@@ -12,7 +12,7 @@
 #include "esp_vfs_fat.h"
 
 #include "fpga_driver.h"
-#include "pmod_board.h"
+#include "pmod_esp32s3.h"
 
 #include "doom_main.h"
 
@@ -33,8 +33,12 @@ void user_task(void *arg)
 
 void app_main(void)
 {
+#ifndef PMOD_OCTAL_SPI_IN_USE
     gpio_set_direction(PMOD_LED_GREEN, GPIO_MODE_OUTPUT);
     gpio_set_direction(PMOD_LED_PINK, GPIO_MODE_OUTPUT);
+#else
+    gpio_set_direction(PMOD_LED_WS2812, GPIO_MODE_OUTPUT);
+#endif
     gpio_set_direction(PMOD_BUTTON, GPIO_MODE_INPUT);
     gpio_set_pull_mode(PMOD_BUTTON, GPIO_PULLUP_ONLY);
 
