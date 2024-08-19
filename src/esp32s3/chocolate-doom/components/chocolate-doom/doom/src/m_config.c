@@ -2696,7 +2696,7 @@ char *M_GetSaveGameDir(const char *iwadname)
     {
         // ~/.local/share/chocolate-doom/savegames
 
-        topdir = M_StringJoin(configdir, "savegames", NULL);
+        topdir = M_StringJoin(configdir, "saves", NULL);
         M_MakeDirectory(topdir);
 
         // eg. ~/.local/share/chocolate-doom/savegames/doom2.wad/
@@ -2722,7 +2722,7 @@ char *M_GetAutoloadDir(const char *iwadname)
 
     if (autoload_path == NULL || strlen(autoload_path) == 0)
     {
-        autoload_path = "/flash/autoload/";
+        autoload_path = "/flash/autoload";
     }
 
     M_MakeDirectory(autoload_path);

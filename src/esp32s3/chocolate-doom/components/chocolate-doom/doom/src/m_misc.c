@@ -386,6 +386,12 @@ void M_MakeDirectory(const char *path)
     _wmkdir(wdir);
 
     free(wdir);
+#elif defined(ESP32_DOOM)
+    int ret;
+    ret = mkdir(path, 0755);
+
+    if (ret != 0)
+        printf("M_MakeDirectory: unable to create %s: %s\n", path, strerror(errno));
 #else
     mkdir(path, 0755);
 #endif

@@ -202,17 +202,18 @@ static void OPL_ESP32_Shutdown(void)
 {
     fpga_driver_register_audio_requested_cb(NULL);
 
-    if (callback_mutex != NULL)
-    {
-        vSemaphoreDelete(callback_mutex);
-        callback_mutex = NULL;
-    }
+    // too lazy to do thread synchronization
+    // if (callback_mutex != NULL)
+    // {
+    //     vSemaphoreDelete(callback_mutex);
+    //     callback_mutex = NULL;
+    // }
 
-    if (callback_queue_mutex != NULL)
-    {
-        vSemaphoreDelete(callback_queue_mutex);
-        callback_queue_mutex = NULL;
-    }
+    // if (callback_queue_mutex != NULL)
+    // {
+    //     vSemaphoreDelete(callback_queue_mutex);
+    //     callback_queue_mutex = NULL;
+    // }
 }
 
 static int OPL_ESP32_Init(unsigned int port_base)
