@@ -27,7 +27,7 @@ The project consists of two parts:
 
 ## Specs
 Combining FPGA based GPU-peripheral and an actual CPU together results in a something resembling a DOS-era PC:
-* The only video mode is 320*240@256 customizable color palette, integer scaled and pillarboxed to 720p@60 HDMI
+* The only video mode is 320*240@256 color palette, integer scaled and pillarboxed to 720p@60 HDMI
 * 16 bit 48 KHz stereo sound through HDMI
 * Quad SPI communication between MCU and FPGA at 80 MHz, giving plenty of bandwidth for 320*240@60hz
 * USB HID: uses small RISC-V CPU to handle USB1.1 mice, keyboards, combined mouse-keyboard devices and hubs
