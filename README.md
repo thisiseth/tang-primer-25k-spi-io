@@ -30,7 +30,7 @@ Combining FPGA based GPU-peripheral and an actual CPU together results in a some
 * The only video mode is 320*240@256 color palette, integer scaled and pillarboxed to 720p@60 HDMI
 * 16 bit 48 KHz stereo sound through HDMI
 * Quad SPI communication between MCU and FPGA at 80 MHz, giving plenty of bandwidth for 320*240@60hz
-* USB HID: uses small RISC-V CPU to handle USB1.1 mice, keyboards, combined mouse-keyboard devices and hubs
+* USB HID: uses small RISC-V softcore with 16 kilobytes of memory to handle USB1.1 mice, keyboards, combined mouse-keyboard devices and hubs
 
 ## Hardware
 Disregard my homebrew HDMI PMOD, at some point i was thinking of decoding HDMI ARC - for just HDMI output [Sipeed DVI(HDMI) PMOD](https://wiki.sipeed.com/hardware/en/tang/tang-PMOD/FPGA_PMOD.html#PMOD_DVI) is fine.
