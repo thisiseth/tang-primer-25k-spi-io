@@ -74,6 +74,22 @@ Also there is one specific test app included to prove that this indeed is a comp
 
 ![plot](./doc/doom1.jpg)
 
+This is a pretty straightforward port of Chocolate Doom 3.1.0, with SDL dependencies replaced with **fpga_driver** and RTOS stuff.
+
+Shareware DOOM1.WAD fits into ESP32-S3 N8R2 module (8MB flash 2MB PSRAM), while DOOM2.WAD is >14MB itself, so i had to buy N32R8V to test it.
+
+**kilograham** has [proven](https://github.com/kilograham/rp2040-doom) that optimized Doom 2 can run on a 264KB RAM RP2040, but my port is mostly just vanilla Chocolate Doom:
+
+* Only 'Doom' Chocolate Doom part is built
+* Has a small FATFS partition for saves and configs
+* Supports USB mouse and keyboard
+* Stable 35 (i believe) fps
+* Shareware Doom 1 runs on a common N8R2 module
+* Uses vanilla WAD files, although stored and accessed as a raw data partition through **mmap** utilizing uncached lump access: with lump caching even on 8 megs of PSRAM Doom 2 is unable to load past the splashcreen!
+* Z_Zone memory disabled in favor of Z_Native
+* Hooked up to Chocolate Doom's OPL emulator, but it doesn't run at full speed, so i'm looking for a replacement
+* SFX not implemented yet :(
+
 ## Credits
 ### Gowin GW5A-25 FPGA side
 * HDMI video and audio encoder: [hdmi](https://github.com/hdl-util/hdmi/) by [Sameer Puri](https://github.com/sameer), dual-licensed under MIT and Apache 2.0
