@@ -247,7 +247,7 @@ void I_FinishUpdate (void)
     // Draw disk icon before blit, if necessary.
     V_DrawDiskIcon();
 
-    memcpy(fpga_framebuffer, spare_framebuffer, sizeof(spare_framebuffer));
+    memcpy(fpga_framebuffer + 20*FPGA_DRIVER_FRAME_WIDTH, spare_framebuffer, sizeof(spare_framebuffer));
 
     if (palette_to_set > 0)
     {

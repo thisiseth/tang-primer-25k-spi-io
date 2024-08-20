@@ -1,4 +1,4 @@
-idf_component_register(SRCS "doom_main.c" 
+idf_component_register(SRCS "doom_main.c" "doom_misc.c"
                     INCLUDE_DIRS "."
                     REQUIRES fpga_driver
                     LDFRAGMENTS doom.lf opl.lf)
