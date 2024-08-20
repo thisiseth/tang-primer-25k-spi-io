@@ -89,6 +89,7 @@ Shareware DOOM1.WAD fits into ESP32-S3 N8R2 module (8MB flash 2MB PSRAM), while 
 * Z_Zone memory disabled in favor of Z_Native
 * Hooked up to Chocolate Doom's OPL emulator, but it doesn't run at full speed, so i'm looking for a replacement
 * SFX not implemented yet :(
+* Network not implemented, but given ESP32-S3 already has Wi-Fi and lwip stack, this should not be a problem
 
 ## Credits
 ### Gowin GW5A-25 FPGA side
