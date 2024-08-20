@@ -33,7 +33,8 @@ Combining FPGA based GPU-peripheral and an actual CPU together results in a some
 * USB HID: uses small RISC-V softcore with 16 kilobytes of memory to handle USB1.1 mice, keyboards, combined mouse-keyboard devices and hubs
 
 ## SPI command reference
-Just check the **fpga_driver_low** [code](./src/esp32s3/esp-idf-components/fpga_driver_low)
+Just check the **fpga_driver_low** [code](./src/esp32s3/esp-idf-components/fpga_driver_low). 
+ESP32-S3 hardware SPI master peripheral is used, i just had to tweak dummy cycle count and latency compensation a bit. 
 
 ## Hardware
 Disregard my homebrew HDMI PMOD, at some point i was thinking of decoding HDMI ARC - for just HDMI output [Sipeed DVI(HDMI) PMOD](https://wiki.sipeed.com/hardware/en/tang/tang-PMOD/FPGA_PMOD.html#PMOD_DVI) is fine.
