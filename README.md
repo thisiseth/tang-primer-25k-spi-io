@@ -18,7 +18,7 @@ The project consists of two parts:
 * Has Quad SPI slave interface with two CS lines: 'GPU' for HDMI and 'IO' for USB HID
 
 #### ESP32-S3 DIY PMOD
-* Has a lot of conventional computating power, two cores, high clock, FPU and more
+* Has a lot of conventional computing power, two cores, high clock, FPU and more
 * Has up to 32 megabytes of flash and 8/16 megabytes of PSRAM
 * Acts as an SPI master with a simple driver layer handling FPGA polling, vsync, audio buffering etc.
 * Driver provides simple interface for frame presentation, synchronized audio and handling HID events
