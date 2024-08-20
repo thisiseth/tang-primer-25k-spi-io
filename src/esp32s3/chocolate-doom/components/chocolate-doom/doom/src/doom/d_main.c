@@ -1391,9 +1391,17 @@ void D_DoomMain (void)
     // directory.
     //
 
+#ifdef ESP32_DOOM
+    devparm = M_CheckParm ("-fpsdots");
+
+    I_DisplayFPSDots(devparm);
+
+    devparm = M_CheckParm ("-devparm");
+#else
     devparm = M_CheckParm ("-devparm");
 
     I_DisplayFPSDots(devparm);
+#endif
 
     //!
     // @category net

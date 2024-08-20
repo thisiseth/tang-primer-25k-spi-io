@@ -12,7 +12,7 @@ static void list_files(const char *path)
 
     if (dir == NULL) 
     {
-        printf("opendir error\n");
+        printf("opendir error: %s\n", path);
         return;
     }
 
@@ -23,16 +23,40 @@ static void list_files(const char *path)
     closedir(dir);
 }
 
+static void print_file(const char *path)
+{
+    FILE *file = fopen(path, "r");
+
+    if (file == NULL) 
+    {
+        printf("can't open %s\n", path);
+        return ;
+    }
+
+    printf("contents of %s:\n\n", path);
+
+    char buffer[1024];  // Buffer to hold chunks of the file content
+    while (fgets(buffer, sizeof(buffer), file) != NULL) {
+        printf("%s", buffer);  // Print each line of the file
+    }
+
+    fclose(file);
+
+    printf("\nend of %s\n", path);
+}
+
 //from 'libesp-idf-chocolate-doom' i_main.c
 int esp32_doom_main(int argc, const char **argv, const char *wadName, uint32_t wadSize, const void *wadMmap);
 
 void doom_main(const char *wadName, uint32_t wadSize, const void *wadMmap)
 {
-    list_files("/flash/wad/");
     list_files("/flash/config/");
     list_files("/flash/tmp/");
 
-    const char *argv[] = { "doom", "-mb", "6", "-iwad", wadName };
+    print_file("/flash/config/default.cfg");
+    print_file("/flash/config/esp-idf-chocolate-doom.cfg");
+
+    const char *argv[] = { "doom", "-novert", /*"-fpsdots",*/ "-iwad", wadName };
     int argc = sizeof(argv) / sizeof(argv[0]);
 
     ESP_LOGI(TAG, "starting doom...");
