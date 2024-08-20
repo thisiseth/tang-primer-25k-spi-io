@@ -72,6 +72,7 @@ Also there is one specific test app included to prove that this indeed is a comp
 
 ## Chocolate Doom port
 
+![plot](./doc/doom1.jpg)
 
 ## Credits
 ### Gowin GW5A-25 FPGA side
