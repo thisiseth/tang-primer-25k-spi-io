@@ -32,6 +32,9 @@ Combining FPGA based GPU-peripheral and an actual CPU together results in a some
 * Quad SPI communication between MCU and FPGA at 80 MHz, giving plenty of bandwidth for 320*240@60hz
 * USB HID: uses small RISC-V softcore with 16 kilobytes of memory to handle USB1.1 mice, keyboards, combined mouse-keyboard devices and hubs
 
+## SPI command reference
+Just check the **fpga_driver_low** [code](./src/esp32s3/esp-idf-components/fpga_driver_low)
+
 ## Hardware
 Disregard my homebrew HDMI PMOD, at some point i was thinking of decoding HDMI ARC - for just HDMI output [Sipeed DVI(HDMI) PMOD](https://wiki.sipeed.com/hardware/en/tang/tang-PMOD/FPGA_PMOD.html#PMOD_DVI) is fine.
 
@@ -40,6 +43,35 @@ ESP32-S3 PMOD just wires out 7 ESP32-S3 GPIOs: 4 bidirectional Quad SPI data lin
 Any 7 pins can be used for this using SPI over GPIO matrix.
 Works fine, although wire length can be a problem at 80 MHz if regular devkit and dupont jumpers to FPGA are used, in this case 40 or even 20 MHz should still be okay. 
 I used bare [ESP32-S3-WROOM module](./doc/pmod_esp32s3_front.jpg) on a perfboard.
+
+## Software
+
+### FPGA
+Everything is inside a single Gowin EDA project, synthesize and program according to [Sipeed instructions](https://wiki.sipeed.com/hardware/en/tang/tang-primer-25k/primer-25k.html#Related-Questions). Plain Gowin EDA installation works fine for me.
+
+Besides SystemVerilog and Verilog code, it contains RISC-V code for USB handling, located at [.../usb_host/ucmem](./src/fpga/spi_io_bridge/src/usb_host/ucmem). 
+Build output **mem.hex** that is embedded into the FPGA bitstream is included, so unless you modify the source no additional steps required.
+
+### ESP32-S3
+There is a common component folder [esp-idf-components](./src/esp32s3/esp-idf-components) containing **fpga_driver,** which is the main FPGA interface wrapper. 
+The driver runs pinned to core 0 as a high priority task, so core 1 can be used solely for the 'user' app.
+
+If writing a new app, just add the component folder to esp-idf search path in top-level CMakeLists.txt:
+```
+list(APPEND EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/../esp-idf-components")
+```
+Then if explicit esp-idf component is required it can be referenced this way:
+```
+idf_component_register(SRCS "abc.c" 
+                    INCLUDE_DIRS "."
+                    REQUIRES fpga_driver)
+```
+
+
+Also there is one specific test app included to prove that this indeed is a computer. Obviously it is...
+
+## Chocolate Doom port
+
 
 ## Credits
 ### Gowin GW5A-25 FPGA side
