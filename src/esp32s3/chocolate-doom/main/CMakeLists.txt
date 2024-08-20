@@ -12,5 +12,5 @@ add_compile_definitions(ESP32_DOOM_WAD_SIZE=${wad_size})
 add_compile_definitions(ESP32_DOOM_WAD_NAME=\"${ESP32_DOOM_WAD_NAME}\")
 
 #flashed always - comment out if tired of waiting when fixing stuff and reflashing
-fatfs_create_spiflash_image(storage ../flash_rw FLASH_IN_PROJECT)
-esptool_py_flash_to_partition(flash wads ${wad_image})
+#fatfs_create_spiflash_image(storage ../flash_rw FLASH_IN_PROJECT)
+#esptool_py_flash_to_partition(flash wads ${wad_image})

@@ -19,8 +19,8 @@
 #include <string.h>
 
 #ifndef ESP32_DOOM
-#include "SDL.h"
-#include "SDL_keycode.h"
+    #include "SDL.h"
+    #include "SDL_keycode.h"
 #endif
 
 #include "doomkeys.h"

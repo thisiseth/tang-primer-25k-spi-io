@@ -23,9 +23,16 @@ static wl_handle_t flash_rw_wl_handle = WL_INVALID_HANDLE;
 
 static esp_partition_mmap_handle_t wad_mmap_handle;
 static const void *wad_mmap;
-
+    
 void user_task(void *arg)
 {
+#ifndef PMOD_OCTAL_SPI_IN_USE
+    pmod_esp32s3_led_set_green(true);
+    pmod_esp32s3_led_set_pink(false);
+#else
+    pmod_esp32s3_led_set_rgb(0, 4, 0);
+#endif
+
     doom_main("/"ESP32_DOOM_WAD_NAME, ESP32_DOOM_WAD_SIZE, wad_mmap);
 
     esp_partition_munmap(wad_mmap_handle);
@@ -36,16 +43,30 @@ void user_task(void *arg)
     vTaskDelete(NULL);
 }
 
-void app_main(void)
+static void error_led()
 {
 #ifndef PMOD_OCTAL_SPI_IN_USE
-    gpio_set_direction(PMOD_LED_GREEN, GPIO_MODE_OUTPUT);
-    gpio_set_direction(PMOD_LED_PINK, GPIO_MODE_OUTPUT);
+    pmod_esp32s3_led_set_green(false);
+    pmod_esp32s3_led_set_pink(true);
 #else
-    gpio_set_direction(PMOD_LED_WS2812, GPIO_MODE_OUTPUT);
+    pmod_esp32s3_led_set_rgb(16, 0, 0);
 #endif
-    gpio_set_direction(PMOD_BUTTON, GPIO_MODE_INPUT);
-    gpio_set_pull_mode(PMOD_BUTTON, GPIO_PULLUP_ONLY);
+}
+
+void app_main(void)
+{
+    if (!pmod_esp32s3_init())
+    {
+        ESP_LOGE(TAG, "pmod board init failed");
+        return;
+    }
+
+#ifndef PMOD_OCTAL_SPI_IN_USE
+    pmod_esp32s3_led_set_green(true);
+    pmod_esp32s3_led_set_pink(true);
+#else
+    pmod_esp32s3_led_set_rgb(8, 4, 0);
+#endif
 
     fpga_driver_config_t driver_config = 
     {
@@ -61,6 +82,7 @@ void app_main(void)
     if (!fpga_driver_init(&driver_config))
     {
         ESP_LOGE(TAG, "failed to init driver");
+        error_led();
         return;
     }
 
@@ -85,6 +107,7 @@ void app_main(void)
     if (err != ESP_OK) 
     {
         ESP_LOGE(TAG, "Failed to mount FATFS (%s)", esp_err_to_name(err));
+        error_led();
         return;
     }
 
@@ -93,15 +116,20 @@ void app_main(void)
     if (partition == NULL) 
     {
         ESP_LOGE(TAG, "Failed to find wads partition");
+        error_led();
         return;
     }
 
     if (esp_partition_mmap(partition, 0, ESP32_DOOM_WAD_SIZE, ESP_PARTITION_MMAP_DATA, &wad_mmap, &wad_mmap_handle) != ESP_OK)
     {
         ESP_LOGE(TAG, "Failed to mmap wads partition");
+        error_led();
         return;
     }
 
     if (xTaskCreatePinnedToCore(user_task, "user_task", 16384, NULL, tskIDLE_PRIORITY+1, NULL, 1) != pdPASS)
+    {
         ESP_LOGE(TAG, "failed to start user task");
+        error_led();
+    }
 }
