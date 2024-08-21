@@ -23,8 +23,6 @@
 #include <errno.h>
 #include <assert.h>
 
-#include "opl3.h"
-
 #include "opl.h"
 #include "opl_internal.h"
 
@@ -33,6 +31,7 @@
 #include "freertos/freertos.h"
 #include "freertos/semphr.h"
 
+#include "woody_opl.h"
 #include "fpga_driver.h"
 
 typedef struct
@@ -69,22 +68,17 @@ static int opl_esp32_paused;
 
 static uint64_t pause_offset;
 
-// OPL software emulator structure.
-
-static opl3_chip opl_chip;
-static int opl_opl3mode;
-
 // Register number that was written.
 
 static int register_num = 0;
+
+// Advance time by the specified number of samples, invoking any
+// callback functions as appropriate.
 
 // Timers; DBOPL does not do timer stuff itself.
 
 static opl_timer_t timer1 = { 12500, 0, 0, 0 };
 static opl_timer_t timer2 = { 3125, 0, 0, 0 };
-
-// Advance time by the specified number of samples, invoking any
-// callback functions as appropriate.
 
 static void AdvanceTime(unsigned int nsamples)
 {
@@ -142,9 +136,7 @@ static void FillBuffer(uint8_t *buffer, unsigned int nsamples)
 {
     assert(nsamples <= FPGA_DRIVER_AUDIO_BUFFER_WRITE_MAX_SAMPLES);
 
-    OPL3_GenerateStream(&opl_chip, (Bit16s *) buffer, nsamples);
-    //SDL_MixAudioFormat(buffer, mix_buffer, AUDIO_S16SYS, nsamples * 4,
-    //                   SDL_MIX_MAXVOLUME);
+    adlib_getsample((Bit16s *) buffer, nsamples);
 }
 
 // Callback function to fill a new sound buffer:
@@ -201,19 +193,6 @@ static void OPL_Audio_Callback(uint32_t *buffer, int *sampleCount, int maxSample
 static void OPL_ESP32_Shutdown(void)
 {
     fpga_driver_register_audio_requested_cb(NULL);
-
-    // too lazy to do thread synchronization
-    // if (callback_mutex != NULL)
-    // {
-    //     vSemaphoreDelete(callback_mutex);
-    //     callback_mutex = NULL;
-    // }
-
-    // if (callback_queue_mutex != NULL)
-    // {
-    //     vSemaphoreDelete(callback_queue_mutex);
-    //     callback_queue_mutex = NULL;
-    // }
 }
 
 static int OPL_ESP32_Init(unsigned int port_base)
@@ -228,8 +207,7 @@ static int OPL_ESP32_Init(unsigned int port_base)
 
     // Create the emulator structure:
 
-    OPL3_Reset(&opl_chip, FPGA_DRIVER_AUDIO_SAMPLE_RATE);
-    opl_opl3mode = 0;
+    adlib_init(FPGA_DRIVER_AUDIO_SAMPLE_RATE);
 
     callback_mutex = xSemaphoreCreateMutex();
     callback_queue_mutex = xSemaphoreCreateMutex();
@@ -260,7 +238,7 @@ static unsigned int OPL_ESP32_PortRead(opl_port_t port)
         result |= 0x20;   // Timer 2 has expired
     }
 
-    return result;
+    return result | adlib_reg_read(port);
 }
 
 static void OPLTimer_CalculateEndTime(opl_timer_t *timer)
@@ -316,10 +294,8 @@ static void WriteRegister(unsigned int reg_num, unsigned int value)
             break;
 
         case OPL_REG_NEW:
-            opl_opl3mode = value & 0x01;
-
         default:
-            OPL3_WriteRegBuffered(&opl_chip, reg_num, value);
+            adlib_write(reg_num, value);
             break;
     }
 }
@@ -380,7 +356,7 @@ static void OPL_ESP32_AdjustCallbacks(float factor)
 
 opl_driver_t opl_esp32_driver =
 {
-    "ESP32",
+    "ESP32_woody",
     OPL_ESP32_Init,
     OPL_ESP32_Shutdown,
     OPL_ESP32_PortRead,

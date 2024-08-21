@@ -326,15 +326,18 @@ opl_init_result_t OPL_Detect(void)
         result2 = OPL_ReadPort(OPL_REGISTER_PORT_OPL3);
         if (result1 == 0x00)
         {
+            printf("OPL: detected OPL3\n");
             return OPL_INIT_OPL3;
         }
         else
         {
+            printf("OPL: detected OPL2\n");
             return OPL_INIT_OPL2;
         }
     }
     else
     {
+        printf("OPL: detected NO OPL\n");
         return OPL_INIT_NONE;
     }
 }
