@@ -405,8 +405,6 @@ static void IRAM_ATTR driver_task_function_audio(void *arg)
 {    
     ESP_LOGI(TAG, "fpga driver audio task started");
 
-    WORD_ALIGNED_ATTR uint32_t generatedSamples[FPGA_DRIVER_AUDIO_BUFFER_WRITE_MAX_SAMPLES];
-
     for (;;)
     {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
@@ -423,7 +421,7 @@ static void IRAM_ATTR driver_task_function_audio(void *arg)
         
         int generatedSampleCount;
 
-        callback(generatedSamples, &generatedSampleCount, FPGA_DRIVER_AUDIO_BUFFER_WRITE_MAX_SAMPLES);
+        callback((uint32_t*)next_audio_buffer, &generatedSampleCount, FPGA_DRIVER_AUDIO_BUFFER_WRITE_MAX_SAMPLES);
 
         if (generatedSampleCount == 0)
             continue;
@@ -433,10 +431,6 @@ static void IRAM_ATTR driver_task_function_audio(void *arg)
             ESP_LOGE(TAG, "audio requested callback returned sampleCount %d out of range", generatedSampleCount);
             continue;
         }
-
-        for (int i = 0; i < generatedSampleCount; ++i)
-            ((uint32_t*)next_audio_buffer)[i] = SWAP_FOUR_BYTES(generatedSamples[i]); //fpga expects MSB-first bigendian 32 bit sample
-                                                                                      //just have to remember which one is left and right
 
         taskENTER_CRITICAL(&driver_spinlock);
 

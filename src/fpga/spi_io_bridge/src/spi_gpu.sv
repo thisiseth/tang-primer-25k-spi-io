@@ -223,7 +223,7 @@ module spi_gpu
                                 tmp10 <= {tmp10[27:0], data_in};
 
                                 if ((counter-2)%8 == 7)
-                                    audio_fifo_in <= {tmp10[27:0], data_in};
+                                    audio_fifo_in <= {<<8{tmp10[27:0], data_in}}; //swap from little endian
 
                                 if ((counter-2)%8 == 0 && (counter-2) > 0)
                                     audio_fifo_wr_clk <= 1;

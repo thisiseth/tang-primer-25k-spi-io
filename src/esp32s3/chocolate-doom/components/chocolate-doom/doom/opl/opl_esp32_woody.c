@@ -32,7 +32,7 @@
 #include "freertos/semphr.h"
 
 #include "woody_opl.h"
-#include "fpga_driver.h"
+#include "esp32_mixer.h"
 
 typedef struct
 {
@@ -80,6 +80,8 @@ static int register_num = 0;
 static opl_timer_t timer1 = { 12500, 0, 0, 0 };
 static opl_timer_t timer2 = { 3125, 0, 0, 0 };
 
+static esp32_mixer_callback_handle_t mixer_handle = NULL;
+
 static void AdvanceTime(unsigned int nsamples)
 {
     opl_callback_t callback;
@@ -90,7 +92,7 @@ static void AdvanceTime(unsigned int nsamples)
 
     // Advance time.
 
-    us = ((uint64_t) nsamples * OPL_SECOND) / FPGA_DRIVER_AUDIO_SAMPLE_RATE;
+    us = ((uint64_t) nsamples * OPL_SECOND) / ESP32_MIXER_SAMPLE_RATE;
     current_time += us;
 
     if (opl_esp32_paused)
@@ -141,7 +143,7 @@ static void FillBuffer(uint8_t *buffer, unsigned int nsamples)
 
 // Callback function to fill a new sound buffer:
 
-static void OPL_Audio_Callback(uint32_t *buffer, int *sampleCount, int maxSampleCount)
+static void OPL_Audio_Callback(uint32_t *buffer, int sampleCount)
 {
     unsigned int filled;
     uint8_t *buffer8;
@@ -151,7 +153,7 @@ static void OPL_Audio_Callback(uint32_t *buffer, int *sampleCount, int maxSample
     filled = 0;
     buffer8 = (uint8_t*)buffer;
 
-    while (filled < maxSampleCount)
+    while (filled < sampleCount)
     {
         uint64_t next_callback_time;
         uint64_t nsamples;
@@ -163,7 +165,7 @@ static void OPL_Audio_Callback(uint32_t *buffer, int *sampleCount, int maxSample
         // buffer with this many samples.
 
         if (opl_esp32_paused || OPL_Queue_IsEmpty(callback_queue))
-            nsamples = maxSampleCount - filled;
+            nsamples = sampleCount - filled;
         else
         {
             next_callback_time = OPL_Queue_Peek(callback_queue) + pause_offset;
@@ -171,8 +173,8 @@ static void OPL_Audio_Callback(uint32_t *buffer, int *sampleCount, int maxSample
             nsamples = (next_callback_time - current_time) * FPGA_DRIVER_AUDIO_SAMPLE_RATE;
             nsamples = (nsamples + OPL_SECOND - 1) / OPL_SECOND;
 
-            if (nsamples > maxSampleCount - filled)
-                nsamples = maxSampleCount - filled;
+            if (nsamples > sampleCount - filled)
+                nsamples = sampleCount - filled;
         }
 
         xSemaphoreGive(callback_queue_mutex);
@@ -186,13 +188,15 @@ static void OPL_Audio_Callback(uint32_t *buffer, int *sampleCount, int maxSample
 
         AdvanceTime(nsamples);
     }
-
-    *sampleCount = maxSampleCount;
 }
 
 static void OPL_ESP32_Shutdown(void)
 {
-    fpga_driver_register_audio_requested_cb(NULL);
+    if (mixer_handle != NULL)
+    {
+        esp32_mixer_unregister_audio_requested_cb(mixer_handle);
+        mixer_handle = NULL;
+    }
 }
 
 static int OPL_ESP32_Init(unsigned int port_base)
@@ -212,7 +216,8 @@ static int OPL_ESP32_Init(unsigned int port_base)
     callback_mutex = xSemaphoreCreateMutex();
     callback_queue_mutex = xSemaphoreCreateMutex();
 
-    fpga_driver_register_audio_requested_cb(OPL_Audio_Callback);
+    esp32_mixer_init();
+    mixer_handle = esp32_mixer_register_audio_requested_cb(OPL_Audio_Callback, 1);
 
     return 1;
 }

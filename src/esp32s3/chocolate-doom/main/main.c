@@ -24,7 +24,7 @@ static wl_handle_t flash_rw_wl_handle = WL_INVALID_HANDLE;
 static esp_partition_mmap_handle_t wad_mmap_handle;
 static const void *wad_mmap;
 
-static void abort_with_error_led()
+static void abort_with_error_led(void)
 {
 #ifndef PMOD_OCTAL_SPI_IN_USE
     pmod_esp32s3_led_set_green(false);
@@ -36,7 +36,7 @@ static void abort_with_error_led()
     abort();
 }
 
-static void loading_led()
+static void loading_led(void)
 {
 #ifndef PMOD_OCTAL_SPI_IN_USE
     pmod_esp32s3_led_set_green(true);
@@ -46,7 +46,7 @@ static void loading_led()
 #endif
 }
 
-static void running_led()
+static void running_led(void)
 {
 #ifndef PMOD_OCTAL_SPI_IN_USE
     pmod_esp32s3_led_set_green(true);
@@ -139,5 +139,11 @@ void app_main(void)
     {
         ESP_LOGE(TAG, "failed to start user task");
         abort_with_error_led();
+    }
+
+    for (;;)
+    {
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
+        ESP_LOGI(TAG, "free heap: %lu", esp_get_free_heap_size());
     }
 }
