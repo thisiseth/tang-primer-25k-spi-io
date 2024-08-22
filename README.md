@@ -88,8 +88,8 @@ Shareware DOOM1.WAD fits into ESP32-S3 N8R2 module (8MB flash 2MB PSRAM), while 
 * Shareware Doom 1 runs on a common N8R2 module
 * Uses vanilla WAD files, although stored and accessed as a raw data partition through **mmap** utilizing uncached lump access: with lump caching even on 8 megs of PSRAM Doom 2 is unable to load past the splashcreen!
 * Z_Zone memory disabled in favor of Z_Native
-* Hooked up to Chocolate Doom's OPL emulator, but it doesn't run at full speed, so i'm looking for a replacement
-* SFX not implemented yet :(
+* Chocolate Doom's OPL emulator is replaced with DOSBox's Woody OPL, however i still had to run it at half the samplerate (24KHz)
+* SFX with 'integer resampling'
 * Network not implemented, but given ESP32-S3 already has Wi-Fi and lwip stack, this should not be a problem
 
 ### Doom demo (YouTube)
