@@ -201,6 +201,12 @@ static void OPL_ESP32_Shutdown(void)
 
 static int OPL_ESP32_Init(unsigned int port_base)
 {
+    if (opl_sample_rate != ESP32_MIXER_SAMPLE_RATE)
+    {
+        printf("OPL_ESP32 supports only samplerate %d while %d is requested\n", ESP32_MIXER_SAMPLE_RATE, opl_sample_rate);
+        return 1;
+    }
+
     opl_esp32_paused = 0;
     pause_offset = 0;
 
@@ -211,10 +217,12 @@ static int OPL_ESP32_Init(unsigned int port_base)
 
     // Create the emulator structure:
 
-    adlib_init(FPGA_DRIVER_AUDIO_SAMPLE_RATE);
+    adlib_init(ESP32_MIXER_SAMPLE_RATE);
 
-    callback_mutex = xSemaphoreCreateMutex();
-    callback_queue_mutex = xSemaphoreCreateMutex();
+    if (callback_mutex == NULL)
+        callback_mutex = xSemaphoreCreateMutex();
+    if (callback_queue_mutex == NULL)
+        callback_queue_mutex = xSemaphoreCreateMutex();
 
     esp32_mixer_init();
     mixer_handle = esp32_mixer_register_audio_requested_cb(OPL_Audio_Callback, 1);

@@ -33,7 +33,7 @@ if(ESP32_DOOM)
         #i_pcsound.c
         #i_sdlmusic.c
         #i_sdlsound.c
-        #i_esp32sound.c <--- uncomment when implemented
+        i_esp32sound.c
         i_sound.c           i_sound.h
         i_timer.h           i_timer.c
         i_video.c           i_video.h
@@ -88,6 +88,8 @@ if(ESP32_DOOM)
         deh_main.c          deh_main.h
         deh_mapping.c       deh_mapping.h
         deh_text.c)
+
+    # had to merge doom with this lib due to cyclic referencing
 
     set(DOOM_SOURCE_FILES
         doom/am_map.c        doom/am_map.h

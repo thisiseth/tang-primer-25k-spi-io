@@ -256,7 +256,7 @@ void I_OPL_DevMessages(char *, size_t);
 
 #ifdef ESP32_DOOM
 
-//extern const sound_module_t sound_esp32_module;
+extern const sound_module_t sound_esp32_module;
 extern const music_module_t music_opl_module;
 
 #else

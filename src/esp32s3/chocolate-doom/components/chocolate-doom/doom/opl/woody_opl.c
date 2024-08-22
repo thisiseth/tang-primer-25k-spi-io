@@ -1589,7 +1589,7 @@ void adlib_getsample(Bit16s* sndptr, Bits numsamples) {
 
 #ifdef ESP32_DOOM_CHEAP_UPSAMPLE
 
-	static Bit16s last_l, last_r;
+	static Bit32s last_l, last_r;
 
 #if defined(OPLTYPE_IS_OPL3)
 		if (adlibreg[0x105]&1) 
