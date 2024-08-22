@@ -92,6 +92,9 @@ Shareware DOOM1.WAD fits into ESP32-S3 N8R2 module (8MB flash 2MB PSRAM), while 
 * SFX not implemented yet :(
 * Network not implemented, but given ESP32-S3 already has Wi-Fi and lwip stack, this should not be a problem
 
+### Doom demo (YouTube)
+[![youtube](https://img.youtube.com/vi/MOvzoBieVqo/hqdefault.jpg)](https://www.youtube.com/watch?v=MOvzoBieVqo)
+
 ## Credits
 ### Gowin GW5A-25 FPGA side
 * HDMI video and audio encoder: [hdmi](https://github.com/hdl-util/hdmi/) by [Sameer Puri](https://github.com/sameer), dual-licensed under MIT and Apache 2.0
