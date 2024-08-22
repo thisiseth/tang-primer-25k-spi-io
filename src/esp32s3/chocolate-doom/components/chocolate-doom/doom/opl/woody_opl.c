@@ -623,10 +623,10 @@ FORCE_INLINE_ATTR void disable_operator(op_type* op_pt, Bit32u act_type) {
 
 FORCE_INLINE_ATTR void clipit16(Bit32s ival, Bit16s* outval) {
 	if (ival<32768) {
-		if (ival>-32769) {
+		if (ival>-32768) {
 			*outval=(Bit16s)ival;
 		} else {
-			*outval = -32768;
+			*outval = -32767;
 		}
 	} else {
 		*outval = 32767;
@@ -1589,7 +1589,8 @@ void adlib_getsample(Bit16s* sndptr, Bits numsamples) {
 
 #ifdef ESP32_DOOM_CHEAP_UPSAMPLE
 
-	static Bit32s last_l, last_r;
+	static Bit32s last_l = 0, last_r = 0;
+	Bit32s block_last_l = last_l, block_last_r = last_r;
 
 #if defined(OPLTYPE_IS_OPL3)
 		if (adlibreg[0x105]&1) 
@@ -1597,13 +1598,13 @@ void adlib_getsample(Bit16s* sndptr, Bits numsamples) {
 			// convert to 16bit samples (stereo)
 			for (i=0;i<endsamples;i++) 
 			{
-				clipit16((last_l + outbufl[i])/2,sndptr++);
-				clipit16((last_r + outbufr[i])/2,sndptr++);
+				clipit16((block_last_l + outbufl[i])/2,sndptr++);
+				clipit16((block_last_r + outbufr[i])/2,sndptr++);
 				clipit16(outbufl[i],sndptr++);
 				clipit16(outbufr[i],sndptr++);
 
-				last_l = outbufl[i];
-				last_r = outbufr[i];
+				block_last_l = outbufl[i];
+				block_last_r = outbufr[i];
 			}
 		} 
 		else 
@@ -1611,26 +1612,29 @@ void adlib_getsample(Bit16s* sndptr, Bits numsamples) {
 			// convert to 16bit samples (mono)
 			for (i=0;i<endsamples;i++) 
 			{
-				clipit16((last_l + outbufl[i])/2,sndptr++);
-				clipit16((last_l + outbufl[i])/2,sndptr++);
+				clipit16((block_last_l + outbufl[i])/2,sndptr++);
+				clipit16((block_last_l + outbufl[i])/2,sndptr++);
 				clipit16(outbufl[i],sndptr++);
 				clipit16(outbufl[i],sndptr++);
 
-				last_l = last_r = outbufl[i];
+				block_last_l = block_last_r = outbufl[i];
 			}
 		}
 #else
 		// convert to 16bit samples
 		for (i=0;i<endsamples;i++)
 		{
-			clipit16((last_l + outbufl[i])/2,sndptr++);
-			clipit16((last_l + outbufl[i])/2,sndptr++);
+			clipit16((block_last_l + outbufl[i])/2,sndptr++);
+			clipit16((block_last_l + outbufl[i])/2,sndptr++);
 			clipit16(outbufl[i],sndptr++);
 			clipit16(outbufl[i],sndptr++);
 			
-			last_l = outbufl[i];
+			block_last_l = outbufl[i];
 		}
 #endif
+
+	last_l = block_last_l;
+	last_r = block_last_r;
 
 #else
 

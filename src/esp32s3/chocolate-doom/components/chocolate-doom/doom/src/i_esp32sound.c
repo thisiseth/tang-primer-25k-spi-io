@@ -350,7 +350,7 @@ static boolean I_ESP32_InitSound(GameMission_t mission)
         sound_mutex = xSemaphoreCreateMutex();
 
     esp32_mixer_init();
-    mixer_handle = esp32_mixer_register_audio_requested_cb(Mixer_Audio_Callback, 1);
+    mixer_handle = esp32_mixer_register_audio_requested_cb(Mixer_Audio_Callback, 2);
 
     sound_initialized = true;
 

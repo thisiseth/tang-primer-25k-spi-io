@@ -225,7 +225,7 @@ static int OPL_ESP32_Init(unsigned int port_base)
         callback_queue_mutex = xSemaphoreCreateMutex();
 
     esp32_mixer_init();
-    mixer_handle = esp32_mixer_register_audio_requested_cb(OPL_Audio_Callback, 1);
+    mixer_handle = esp32_mixer_register_audio_requested_cb(OPL_Audio_Callback, 2);
 
     return 1;
 }
