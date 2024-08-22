@@ -100,7 +100,7 @@ Shareware DOOM1.WAD fits into ESP32-S3 N8R2 module (8MB flash 2MB PSRAM), while 
 ### ESP32S3 'CPU' side
 #### Doom port
 * [Chocolate Doom](https://github.com/chocolate-doom/chocolate-doom) by https://www.chocolate-doom.org/, licensed under GPLv2
-* [libsamplerate](https://github.com/libsndfile/libsamplerate) by [Erik de Castro Lopo](mailto:erikd@mega-nerd.com), licensed under BSD 2-Clause
+* ["Woody" OPL3 emulator](https://github.com/rofl0r/woody-opl) by [DOSBox team](https://www.dosbox.com/crew.php), DOSBox is licensed under GPLv2
 * Doom optimizations: [rp2040-doom](https://github.com/kilograham/rp2040-doom) by [Graham Sanderson](https://github.com/kilograham), licensed under GPLv2
 
 ## Licence
