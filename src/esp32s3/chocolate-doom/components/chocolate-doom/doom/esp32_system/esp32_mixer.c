@@ -12,12 +12,12 @@ typedef struct
     int volumeDivisor;
 } esp32_mixer_channel_t;
 
-static esp32_mixer_channel_t channels[ESP32_MIXER_CHANNELS];
+static DMA_ATTR esp32_mixer_channel_t channels[ESP32_MIXER_CHANNELS];
 static DMA_ATTR int16_t mixer_buffer[FPGA_DRIVER_AUDIO_BUFFER_WRITE_MAX_SAMPLES*2];
 
 static SemaphoreHandle_t mixer_mutex = NULL;
 
-static void fpga_driver_audio_requested_callback(uint32_t *buffer, int *sampleCount, int maxSampleCount)
+static IRAM_ATTR void fpga_driver_audio_requested_callback(uint32_t *buffer, int *sampleCount, int maxSampleCount)
 {
     xSemaphoreTake(mixer_mutex, portMAX_DELAY);
 
@@ -86,6 +86,8 @@ esp32_mixer_callback_handle_t esp32_mixer_register_audio_requested_cb(esp32_mixe
 
 void esp32_mixer_unregister_audio_requested_cb(esp32_mixer_callback_handle_t handle)
 {
+    assert(handle != NULL);
+
     xSemaphoreTake(mixer_mutex, portMAX_DELAY);
 
     esp32_mixer_channel_t *channel = (esp32_mixer_channel_t*)handle;

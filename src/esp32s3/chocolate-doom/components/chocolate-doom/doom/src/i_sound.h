@@ -237,8 +237,11 @@ extern int snd_maxslicetime_ms;
 extern char *snd_musiccmd;
 extern int snd_pitchshift;
 extern char *snd_dmxoption;
+
+#ifndef ESP32_DOOM
 extern int use_libsamplerate;
 extern float libsamplerate_scale;
+#endif
 
 void I_BindSoundVariables(void);
 

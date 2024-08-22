@@ -24,7 +24,6 @@
 #include <string.h>
 #include <assert.h>
 
-#include "samplerate.h"
 #include "deh_str.h"
 #include "i_sound.h"
 #include "i_system.h"
@@ -40,399 +39,50 @@
 #include "freertos/semphr.h"
 #include "esp32_mixer.h"
 
-#define ESP32_DOOM_CHEAP_UPSAMPLE
-
-#ifndef ESP32_DOOM_CHEAP_UPSAMPLE
-    #define ESP32SOUND_RESAMPLE_FREQ ESP32_MIXER_SAMPLE_RATE
-#else
-    #define ESP32SOUND_RESAMPLE_FREQ (ESP32_MIXER_SAMPLE_RATE/2)
-#endif
-
-int use_libsamplerate = 1;
-
-// Scale factor used when converting libsamplerate floating point numbers
-// to integers. Too high means the sounds can clip; too low means they
-// will be too quiet. This is an amount that should avoid clipping most
-// of the time: with all the Doom IWAD sound effects, at least. If a PWAD
-// is used, clipping might occur.
-
-float libsamplerate_scale = 0.65f;
-
 #define NUM_CHANNELS 16
 
-#define ESP32SOUND_STEP 1024
-
-typedef struct allocated_sound_s allocated_sound_t;
-
-struct allocated_sound_s
-{
-    sfxinfo_t *sfxinfo;
-    uint8_t *samples;
-    int samplesLength;
-    int use_count;
-    allocated_sound_t *prev, *next;
-};
+#define ESP32SOUND_STEP 4096
 
 typedef struct 
-{   
-    allocated_sound_t *sound;
-    int16_t *samples;
+{
+    uint8_t *samples;
+    uint32_t samplesCount;
+    uint32_t sampleRate;
+} sfxinfo_parsed_t;
+
+typedef struct 
+{
+    uint8_t *samples;
     uint32_t samplesCount; //sample count 0 also indicates that playback has finished
     uint32_t offset; //position in samples * ESP32SOUND_STEP
     uint32_t step; //one sample step * ESP32SOUND_STEP
-    uint8_t left, right; // volume 0-255
+    float left, right; // volume 0.0-32767.0
 } channel_t;
 
 static boolean sound_initialized = false;
+static boolean use_sfx_prefix;
 
 static channel_t channels[NUM_CHANNELS];
 
-static boolean use_sfx_prefix;
-
-// Doubly-linked list of allocated sounds.
-// When a sound is played, it is moved to the head, so that the oldest
-// sounds not used recently are at the tail.
-
-static allocated_sound_t *allocated_sounds_head = NULL;
-static allocated_sound_t *allocated_sounds_tail = NULL;
-
-//static int allocated_sounds_size = 0;
-int allocated_sounds_size = 0;
-
 static esp32_mixer_callback_handle_t mixer_handle = NULL;
-
 static SemaphoreHandle_t sound_mutex = NULL;
 
-// Hook a sound into the linked list at the head.
-
-static inline void AllocatedSoundLink(allocated_sound_t *snd)
+static inline void StopChannel(int channel)
 {
-    snd->prev = NULL;
-
-    snd->next = allocated_sounds_head;
-    allocated_sounds_head = snd;
-
-    if (allocated_sounds_tail == NULL)
-        allocated_sounds_tail = snd;
-    else
-        snd->next->prev = snd;
-}
-
-// Unlink a sound from the linked list.
-
-static inline void AllocatedSoundUnlink(allocated_sound_t *snd)
-{
-    if (snd->prev == NULL)
-        allocated_sounds_head = snd->next;
-    else
-        snd->prev->next = snd->next;
-
-    if (snd->next == NULL)
-        allocated_sounds_tail = snd->prev;
-    else
-        snd->next->prev = snd->prev;
-}
-
-static void FreeAllocatedSound(allocated_sound_t *snd)
-{
-    // Unlink from linked list.
-
-    AllocatedSoundUnlink(snd);
-
-    // Keep track of the amount of allocated sound data:
-
-    allocated_sounds_size -= snd->samplesLength;
-
-    free(snd);
-}
-
-// Search from the tail backwards along the allocated sounds list, find
-// and free a sound that is not in use, to free up memory.  Return true
-// for success.
-
-static boolean FindAndFreeSound(void)
-{
-    allocated_sound_t *snd;
-
-    snd = allocated_sounds_tail;
-
-    while (snd != NULL)
-    {
-        if (snd->use_count <= 0)
-        {
-            FreeAllocatedSound(snd);
-            return true;
-        }
-
-        snd = snd->prev;
-    }
-
-    // No available sounds to free...
-
-    return false;
-}
-
-// Enforce SFX cache size limit.  We are just about to allocate "len"
-// bytes on the heap for a new sound effect, so free up some space
-// so that we keep allocated_sounds_size < snd_cachesize
-
-static void ReserveCacheSpace(size_t len)
-{
-    if (snd_cachesize <= 0)
-        return;
-
-    // Keep freeing sound effects that aren't currently being played,
-    // until there is enough space for the new sound.
-
-    while (allocated_sounds_size + len > snd_cachesize)
-        if (!FindAndFreeSound()) // Free a sound. If there is nothing more to free, stop.
-            break;
-}
-
-// Allocate a block for a new sound effect.
-
-static allocated_sound_t *AllocateSound(sfxinfo_t *sfxinfo, size_t len)
-{
-    allocated_sound_t *snd;
-
-    // Keep allocated sounds within the cache size.
-
-    ReserveCacheSpace(len);
-
-    // Allocate the sound structure and data.  The data will immediately
-    // follow the structure, which acts as a header.
-
-    do
-    {
-        snd = malloc(sizeof(allocated_sound_t) + len);
-
-        // Out of memory?  Try to free an old sound, then loop round
-        // and try again.
-
-        if (snd == NULL && !FindAndFreeSound())
-            return NULL;
-    } while (snd == NULL);
-
-    // Skip past the chunk structure for the audio buffer
-
-    snd->samples = (byte *) (snd + 1);
-    snd->samplesLength = len;
-    snd->sfxinfo = sfxinfo;
-    snd->use_count = 0;
-
-    // Keep track of how much memory all these cached sounds are using...
-
-    allocated_sounds_size += len;
-
-    AllocatedSoundLink(snd);
-
-    return snd;
-}
-
-// Lock a sound, to indicate that it may not be freed.
-
-static inline void LockAllocatedSound(allocated_sound_t *snd)
-{
-    // Increase use count, to stop the sound being freed.
-
-    ++snd->use_count;
-
-    // When we use a sound, re-link it into the list at the head, so
-    // that the oldest sounds fall to the end of the list for freeing.
-
-    AllocatedSoundUnlink(snd);
-    AllocatedSoundLink(snd);
-}
-
-// Unlock a sound to indicate that it may now be freed.
-
-static inline void UnlockAllocatedSound(allocated_sound_t *snd)
-{
-    if (snd->use_count <= 0)
-        I_Error("Sound effect released more times than it was locked...");
-    
-    --snd->use_count;
-}
-
-// Search through the list of allocated sounds and return the one that matches
-// the supplied sfxinfo entry and pitch level.
-
-static allocated_sound_t* GetAllocatedSoundBySfxInfo(sfxinfo_t *sfxinfo)
-{
-    allocated_sound_t * p = allocated_sounds_head;
-
-    while (p != NULL)
-    {
-        if (p->sfxinfo == sfxinfo)
-            return p;
-
-        p = p->next;
-    }
-
-    return NULL;
-}
-
-// When a sound stops, check if it is still playing.  If it is not,
-// we can mark the sound data as CACHE to be freed back for other
-// means.
-
-static void ReleaseSoundOnChannel(int channel)
-{
-    allocated_sound_t *snd = channels[channel].sound;
-
-    if (snd == NULL)
-        return;
-
-    channels[channel].sound = NULL;
     channels[channel].samples = NULL;
     channels[channel].samplesCount = 0;
-
-    UnlockAllocatedSound(snd);
 }
 
-// Returns the conversion mode for libsamplerate to use.
-
-static int SRC_ConversionMode(void)
+static inline sfxinfo_parsed_t ParseSfxInfo(sfxinfo_t *sfxinfo)
 {
-    switch (use_libsamplerate)
-    {
-        // 0 = disabled
+    sfxinfo_parsed_t info = {0};
 
-        default:
-        case 0:
-            return -1;
-
-        // Ascending numbers give higher quality
-
-        case 1:
-            return SRC_LINEAR;
-        case 2:
-            return SRC_ZERO_ORDER_HOLD;
-        case 3:
-            return SRC_SINC_FASTEST;
-        case 4:
-            return SRC_SINC_MEDIUM_QUALITY;
-        case 5:
-            return SRC_SINC_BEST_QUALITY;
-    }
-}
-
-static allocated_sound_t* ExpandSoundData_SRC(sfxinfo_t *sfxinfo,
-                                             byte *data,
-                                             int samplerate,
-                                             int length)
-{
-    SRC_DATA src_data;
-    float *data_in;
-    uint32_t i, abuf_index=0, clipped=0;
-    int retn;
-    int16_t *expanded;
-    allocated_sound_t *snd;
-
-    src_data.input_frames = length;
-    data_in = malloc(length * sizeof(float));
-    src_data.data_in = data_in;
-    src_data.src_ratio = (double)ESP32SOUND_RESAMPLE_FREQ / samplerate;
-
-    // We include some extra space here in case of rounding-up.
-    src_data.output_frames = src_data.src_ratio * length + (ESP32SOUND_RESAMPLE_FREQ / 4);
-    src_data.data_out = malloc(src_data.output_frames * sizeof(float));
-
-    assert(src_data.data_in != NULL && src_data.data_out != NULL);
-
-    // Convert input data to floats
-
-    for (i=0; i<length; ++i)
-        // Unclear whether 128 should be interpreted as "zero" or whether a
-        // symmetrical range should be assumed.  The following assumes a
-        // symmetrical range.
-        data_in[i] = data[i] / 127.5f - 1.0f;
-    
-    // Do the sound conversion
-
-    retn = src_simple(&src_data, SRC_ConversionMode(), 1);
-    assert(retn == 0);
-
-    // Allocate the new chunk.
-
-    snd = AllocateSound(sfxinfo, src_data.output_frames_gen * 2);
-
-    if (snd == NULL)
-        return NULL;
-    
-    expanded = (int16_t *)snd->samples;
-
-    // Convert the result back into 16-bit integers.
-
-    for (i=0; i<src_data.output_frames_gen; ++i)
-    {
-        // libsamplerate does not limit itself to the -1.0 .. 1.0 range on
-        // output, so a multiplier less than INT16_MAX (32767) is required
-        // to avoid overflows or clipping.  However, the smaller the
-        // multiplier, the quieter the sound effects get, and the more you
-        // have to turn down the music to keep it in balance.
-
-        // 22265 is the largest multiplier that can be used to resample all
-        // of the Vanilla DOOM sound effects to 48 kHz without clipping
-        // using SRC_SINC_BEST_QUALITY.  It is close enough (only slightly
-        // too conservative) for SRC_SINC_MEDIUM_QUALITY and
-        // SRC_SINC_FASTEST.  PWADs with interestingly different sound
-        // effects or target rates other than 48 kHz might still result in
-        // clipping--I don't know if there's a limit to it.
-
-        // As the number of clipped samples increases, the signal is
-        // gradually overtaken by noise, with the loudest parts going first.
-        // However, a moderate amount of clipping is often tolerated in the
-        // quest for the loudest possible sound overall.  The results of
-        // using INT16_MAX as the multiplier are not all that bad, but
-        // artifacts are noticeable during the loudest parts.
-
-        float cvtval_f =
-            src_data.data_out[i] * libsamplerate_scale * INT16_MAX;
-        int32_t cvtval_i = cvtval_f + (cvtval_f < 0 ? -0.5 : 0.5);
-
-        // Asymmetrical sound worries me, so we won't use -32768.
-        if (cvtval_i < -INT16_MAX)
-        {
-            cvtval_i = -INT16_MAX;
-            ++clipped;
-        }
-        else if (cvtval_i > INT16_MAX)
-        {
-            cvtval_i = INT16_MAX;
-            ++clipped;
-        }
-
-        // mono
-
-        expanded[abuf_index++] = cvtval_i;
-    }
-
-    free(data_in);
-    free(src_data.data_out);
-
-    if (clipped > 0)
-    {
-        fprintf(stderr, "Sound '%s': clipped %lu samples (%0.2f %%)\n", 
-                        sfxinfo->name, clipped,
-                        400.0 * clipped / snd->samplesLength);
-    }
-
-    return snd;
-}
-
-// Load and convert a sound effect
-// Returns true if successful
-
-static allocated_sound_t* CacheSFX(sfxinfo_t *sfxinfo)
-{
     int lumpnum;
     unsigned int lumplen;
     int samplerate;
     unsigned int length;
     byte *data;
-    allocated_sound_t *sound;
-
+    
     // need to load the sound
 
     lumpnum = sfxinfo->lumpnum;
@@ -442,7 +92,7 @@ static allocated_sound_t* CacheSFX(sfxinfo_t *sfxinfo)
     // Check the header, and ensure this is a valid sound
 
     if (lumplen < 8 || data[0] != 0x03 || data[1] != 0x00)
-        return NULL; // Invalid sound
+        return info; // Invalid sound
     
     // 16 bit sample rate field, 32 bit length field
 
@@ -459,7 +109,7 @@ static allocated_sound_t* CacheSFX(sfxinfo_t *sfxinfo)
     // behavior.
 
     if (length > lumplen - 8 || length <= 48)
-        return NULL;
+        return info;
     
     // The DMX sound library seems to skip the first 16 and last 16
     // bytes of the lump - reason unknown.
@@ -467,16 +117,11 @@ static allocated_sound_t* CacheSFX(sfxinfo_t *sfxinfo)
     data += 16;
     length -= 32;
 
-    // Sample rate conversion
-
-    if ((sound = ExpandSoundData_SRC(sfxinfo, data + 8, samplerate, length)) == NULL)
-        return NULL;
+    info.samples = data + 8;
+    info.samplesCount = length;
+    info.sampleRate = samplerate;
     
-    // don't need the original lump any more
-  
-    W_ReleaseLumpNum(lumpnum);
-
-    return sound;
+    return info;
 }
 
 static void GetSfxLumpName(sfxinfo_t *sfx, char *buf, size_t buf_len)
@@ -495,56 +140,12 @@ static void GetSfxLumpName(sfxinfo_t *sfx, char *buf, size_t buf_len)
         M_StringCopy(buf, DEH_String(sfx->name), buf_len);
 }
 
-static inline uint32_t GetStepForPitch(int pitch)
+static inline uint32_t GetStep(int pitch, int sampleRate)
 {
-    return (uint32_t)(ESP32SOUND_STEP * (2.0f - (float)pitch / NORM_PITCH));
+    return (uint32_t)(ESP32SOUND_STEP * (2.0f - (float)NORM_PITCH / pitch) * ((float)sampleRate / ESP32_MIXER_SAMPLE_RATE));
 }
 
-// Preload all the sound effects - stops nasty ingame freezes
-
-static void I_ESP32_PrecacheSounds(sfxinfo_t *sounds, int num_sounds)
-{
-    char namebuf[9];
-    int i;
-
-    printf("I_ESP32_PrecacheSounds: Precaching all sound effects..");
-
-    for (i=0; i<num_sounds; ++i)
-    {
-        if ((i % 6) == 0)
-        {
-            printf(".");
-            fflush(stdout);
-        }
-
-        GetSfxLumpName(&sounds[i], namebuf, sizeof(namebuf));
-
-        sounds[i].lumpnum = W_CheckNumForName(namebuf);
-
-        if (sounds[i].lumpnum != -1)
-            CacheSFX(&sounds[i]);
-    }
-
-    printf("\n");
-}
-
-// Load a SFX chunk into memory and ensure that it is locked.
-
-static allocated_sound_t* LockSound(sfxinfo_t *sfxinfo)
-{
-    allocated_sound_t *sound;
-
-    // If the sound isn't loaded, load it now
-    if ((sound = GetAllocatedSoundBySfxInfo(sfxinfo)) == NULL)
-        if ((sound = CacheSFX(sfxinfo)) == NULL)
-            return NULL;
-
-    LockAllocatedSound(sound);
-
-    return sound;
-}
-
-static inline void UpdateSoundParams(int handle, int vol, int sep)
+static inline void UpdateSoundParams(int channel, int vol, int sep)
 {
     int left, right;
 
@@ -561,28 +162,34 @@ static inline void UpdateSoundParams(int handle, int vol, int sep)
     else if (right > 255) 
         right = 255;
 
-    channels[handle].left = left;
-    channels[handle].right = right;
+    channels[channel].left = 32767.0f * left / 255.0f;
+    channels[channel].right = 32767.0f * right / 255.0f;
 }
 
 static inline boolean SoundIsPlaying(int handle)
 {
-    return channels[handle].samplesCount > 0 && (channels[handle].offset / channels[handle].step) >= channels[handle].samplesCount;
+    return (channels[handle].samplesCount > 0) && (channels[handle].offset / ESP32SOUND_STEP) < channels[handle].samplesCount;
 }
 
-#ifdef ESP32_DOOM_CHEAP_UPSAMPLE
-static int32_t prev_left, prev_right;
-#endif
-
-static void Mixer_Audio_Callback(uint32_t *buffer, int sampleCount)
+static IRAM_ATTR void Mixer_Audio_Callback(uint32_t *buffer, int sampleCount)
 {
+    int32_t left, right;
     xSemaphoreTake(sound_mutex, portMAX_DELAY);
 
     for (int i = 0; i < sampleCount; ++i)
     {
-        int32_t left = 0, right = 0;
+        left = right = 0;
 
+        for (int j = 0; j < NUM_CHANNELS; ++j)
+        {
+            if (!SoundIsPlaying(j))
+                continue;
+            
+            left += ((channels[j].samples[channels[j].offset / ESP32SOUND_STEP]) / 127.5f - 1.0f) * channels[j].left;
+            right += ((channels[j].samples[channels[j].offset / ESP32SOUND_STEP]) / 127.5f - 1.0f) * channels[j].right;
 
+            channels[j].offset += channels[j].step;
+        }
 
         if (left < -INT16_MAX)
             left = -INT16_MAX;
@@ -594,15 +201,7 @@ static void Mixer_Audio_Callback(uint32_t *buffer, int sampleCount)
         else if (right > INT16_MAX)
             right = INT16_MAX;
 
-        
-    }
-
-    for (int channel = 0; channel < NUM_CHANNELS; ++channel)
-    {
-        if (!SoundIsPlaying(channel))
-            continue;
-
-        
+        buffer[i] = (left & 0xFFFF) | (right << 16);
     }
 
     xSemaphoreGive(sound_mutex);
@@ -612,6 +211,11 @@ static void Mixer_Audio_Callback(uint32_t *buffer, int sampleCount)
 // Retrieve the raw data lump index
 //  for a given SFX name.
 //
+
+static void I_ESP32_PrecacheSounds(sfxinfo_t *sounds, int num_sounds)
+{
+    // :(
+}
 
 static int I_ESP32_GetSfxLumpNum(sfxinfo_t *sfx)
 {
@@ -634,47 +238,33 @@ static void I_ESP32_UpdateSoundParams(int handle, int vol, int sep)
     xSemaphoreGive(sound_mutex);
 }
 
-//
-// Starting a sound means adding it
-//  to the current list of active sounds
-//  in the internal channels.
-// As the SFX info struct contains
-//  e.g. a pointer to the raw data,
-//  it is ignored.
-// As our sound handling does not handle
-//  priority, it is ignored.
-// Pitching (that is, increased speed of playback)
-//  is set, but currently not used by mixing.
-//
-
 static int I_ESP32_StartSound(sfxinfo_t *sfxinfo, int channel, int vol, int sep, int pitch)
 {
-    allocated_sound_t *snd;
+    sfxinfo_parsed_t snd;
 
     if (!sound_initialized || channel < 0 || channel >= NUM_CHANNELS)
         return -1;
     
+    assert(pitch > 0);
+
     xSemaphoreTake(sound_mutex, portMAX_DELAY);
 
-    // Release a sound effect if there is already one playing
-    // on this channel
-
-    ReleaseSoundOnChannel(channel);
-
-    xSemaphoreGive(sound_mutex);
+    StopChannel(channel);
 
     // Get the sound data
 
-    if ((snd = LockSound(sfxinfo)) == NULL)
-        return -1;
-    
-    xSemaphoreTake(sound_mutex, portMAX_DELAY);
+    snd = ParseSfxInfo(sfxinfo);
 
-    channels[channel].sound = snd;
-    channels[channel].samples = (int16_t*)snd->samples;
-    channels[channel].samplesCount = snd->samplesLength / 2;
+    if (snd.samplesCount == 0)
+    {
+        xSemaphoreGive(sound_mutex);
+        return -1;
+    }
+
+    channels[channel].samples = snd.samples;
+    channels[channel].samplesCount = snd.samplesCount;
     channels[channel].offset = 0;
-    channels[channel].step = GetStepForPitch(pitch);
+    channels[channel].step = GetStep(pitch, snd.sampleRate);
 
     UpdateSoundParams(channel, vol, sep);
 
@@ -693,7 +283,7 @@ static void I_ESP32_StopSound(int handle)
     // Sound data is no longer needed; release the
     // sound data being used for this channel
 
-    ReleaseSoundOnChannel(handle);
+    StopChannel(handle);
 
     xSemaphoreGive(sound_mutex);
 }
@@ -727,10 +317,8 @@ static void I_ESP32_UpdateSound(void)
     xSemaphoreTake(sound_mutex, portMAX_DELAY);
 
     for (i=0; i<NUM_CHANNELS; ++i)
-        if (channels[i].sound != NULL && !SoundIsPlaying(i))
-            // Sound has finished playing on this channel,
-            // but sound data has not been released to cache
-            ReleaseSoundOnChannel(i);
+        if (!SoundIsPlaying(i))
+            StopChannel(i);
         
     xSemaphoreGive(sound_mutex);
 }
@@ -756,21 +344,10 @@ static boolean I_ESP32_InitSound(GameMission_t mission)
         return false;
     }
 
-    if (SRC_ConversionMode() < 0)
-    {
-        I_Error("I_SDL_InitSound: Invalid value for use_libsamplerate: %i", use_libsamplerate);
-        return false;
-    }
-
     use_sfx_prefix = (mission == doom || mission == strife);
     
     if (sound_mutex == NULL)
         sound_mutex = xSemaphoreCreateMutex();
-
-#ifdef ESP32_DOOM_CHEAP_UPSAMPLE
-    prev_left = 0;
-    prev_right = 0;
-#endif
 
     esp32_mixer_init();
     mixer_handle = esp32_mixer_register_audio_requested_cb(Mixer_Audio_Callback, 1);

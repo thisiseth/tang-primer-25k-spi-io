@@ -164,7 +164,7 @@ if(ESP32_DOOM)
     set(SOURCE_FILES_WITH_DEH ${SOURCE_FILES} ${DEHACKED_SOURCE_FILES})
     set(SOURCE_FILES_WITH_DEH2 ${SOURCE_FILES_WITH_DEH} ${DOOM_SOURCE_FILES})
 
-    set(EXTRA_LIBS esp32_system opl SampleRate::samplerate idf::freertos idf::esp_timer idf::fpga_driver)
+    set(EXTRA_LIBS esp32_system opl idf::freertos idf::esp_timer idf::fpga_driver)
 
     set(GAME_INCLUDE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/../" "doom" ".")
 
