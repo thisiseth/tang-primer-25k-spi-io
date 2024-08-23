@@ -1,0 +1,4 @@
+[mapping:doom]
+archive: libwinquake.a
+entries:
+    * (extram_bss)
