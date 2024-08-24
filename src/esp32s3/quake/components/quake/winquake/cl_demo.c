@@ -244,7 +244,7 @@ void CL_Record_f (void)
 	COM_DefaultExtension (name, ".dem");
 
 	Con_Printf ("recording to %s.\n", name);
-	cls.demofile = fopen (name, "wb");
+	cls.demofile = quake_fopen(name, "wb");
 	if (!cls.demofile)
 	{
 		Con_Printf ("ERROR: couldn't open.\n");

@@ -330,7 +330,7 @@ void GL_MakeAliasModelDisplayLists (model_t *m, aliashdr_t *hdr)
 		// save out the cached version
 		//
 		sprintf (fullpath, "%s/%s", com_gamedir, cache);
-		f = fopen (fullpath, "wb");
+		f = quake_fopen (fullpath, "wb");
 		if (f)
 		{
 			fwrite (&numcommands, 4, 1, f);

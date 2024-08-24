@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "esp_timer.h"
 #include <sys/stat.h>
+#include "freertos/FreeRTOS.h"
 
 #define MAX_HANDLES 10
 
@@ -165,10 +166,16 @@ int Sys_FileRead(int handle, void *dest, int count)
 		if (sys_handles[handle].mmapOffset >= mmap_pak_size)
 			return 0;
 
-		if (sys_handles[handle].mmapOffset + count > mmap_pak_size)
+		if ((sys_handles[handle].mmapOffset + count) > mmap_pak_size)
 			count = mmap_pak_size - sys_handles[handle].mmapOffset;
 
-		memcpy(dest, mmap_pak + sys_handles[handle].mmapOffset, count);
+		printf("reading pak: %d at %lu, heap at %lu, stack at %u\n", 
+			count, 
+			sys_handles[handle].mmapOffset, 
+			esp_get_free_heap_size(),
+			uxTaskGetStackHighWaterMark(NULL));
+
+		memcpy(dest, (const uint8_t*)mmap_pak + sys_handles[handle].mmapOffset, count);
 		sys_handles[handle].mmapOffset += count;
 		return count;
 	}
@@ -274,6 +281,19 @@ void Sys_LowFPPrecision(void)
 	//not a 486
 }
 
+FILE* quake_fopen(const char *name, const char *type)
+{
+	if (!strcmp(name, mmap_pak_path))
+	{
+		if (strcmp(type, "rb"))
+			Sys_Error("quake_fopen: invalid mode %s for mmapped %s\n", type, name);
+
+		return fmemopen(mmap_pak, mmap_pak_size, "rb");
+	}
+
+	return fopen(name, type);
+}
+
 //=============================================================================
 
 static quakeparms_t parms;
@@ -306,6 +326,12 @@ void esp32_quake_main(int argc, char **argv, const char *pakPath, uint32_t pakSi
 		Host_Frame (time);
 
 		oldtime = newtime;
+
+		printf("frame drawn, heap at %lu, stack at %u\n",
+			esp_get_free_heap_size(),
+			uxTaskGetStackHighWaterMark(NULL));
+
+		vTaskDelay(100 / portTICK_PERIOD_MS);
 	}
 }
 

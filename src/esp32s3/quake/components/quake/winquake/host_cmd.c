@@ -515,7 +515,7 @@ void Host_Savegame_f (void)
 	COM_DefaultExtension (name, ".sav");
 	
 	Con_Printf ("Saving game to %s...\n", name);
-	f = fopen (name, "w");
+	f = quake_fopen (name, "w");
 	if (!f)
 	{
 		Con_Printf ("ERROR: couldn't open.\n");
@@ -590,7 +590,7 @@ void Host_Loadgame_f (void)
 //	SCR_BeginLoadingPlaque ();
 
 	Con_Printf ("Loading game from %s...\n", name);
-	f = fopen (name, "r");
+	f = quake_fopen (name, "r");
 	if (!f)
 	{
 		Con_Printf ("ERROR: couldn't open.\n");
@@ -718,7 +718,7 @@ void SaveGamestate()
 	sprintf (name, "%s/%s.gip", com_gamedir, sv.name);
 	
 	Con_Printf ("Saving game to %s...\n", name);
-	f = fopen (name, "w");
+	f = quake_fopen (name, "w");
 	if (!f)
 	{
 		Con_Printf ("ERROR: couldn't open.\n");
@@ -774,7 +774,7 @@ int LoadGamestate(char *level, char *startspot)
 	sprintf (name, "%s/%s.gip", com_gamedir, level);
 	
 	Con_Printf ("Loading game from %s...\n", name);
-	f = fopen (name, "r");
+	f = quake_fopen (name, "r");
 	if (!f)
 	{
 		Con_Printf ("ERROR: couldn't open.\n");

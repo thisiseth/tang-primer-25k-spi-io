@@ -336,7 +336,7 @@ static char *stripped_fgets(char *s, int n, FILE *f)
 // Opens an .INI file. Works like fopen
 FILE *ini_fopen(const char *filename, const char *modes)
 {
-   return(fopen(filename,modes));
+   return(quake_fopen(filename,modes));
 }
 
 // Closes a .INI file. Works like fclose

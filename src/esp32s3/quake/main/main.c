@@ -135,7 +135,7 @@ void app_main(void)
         abort_with_error_led();
     }
 
-    if (xTaskCreatePinnedToCore(user_task, "user_task", 16384, NULL, tskIDLE_PRIORITY+1, NULL, 1) != pdPASS)
+    if (xTaskCreatePinnedToCore(user_task, "user_task", 100000, NULL, tskIDLE_PRIORITY+1, NULL, 1) != pdPASS)
     {
         ESP_LOGE(TAG, "failed to start user task");
         abort_with_error_led();

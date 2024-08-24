@@ -615,7 +615,10 @@ void Sys_Error (char *error, ...)
 	Host_Shutdown();
 	fprintf(stderr, "Error: %s\n", string);
 // Sys_AtExit is called by exit to shutdown the system
-	exit(0);
+	for (;;)
+	{
+		//halt
+	}
 } 
 
 

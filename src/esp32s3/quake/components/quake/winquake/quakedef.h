@@ -45,6 +45,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdlib.h>
 #include <setjmp.h>
 
+#ifndef ESP32_QUAKE
+#define quake_fopen fopen 
+#else
+FILE* quake_fopen(const char *name, const char *type);
+#endif
+
 #if defined(_WIN32) && !defined(WINDED)
 
 #if defined(_M_IX86)

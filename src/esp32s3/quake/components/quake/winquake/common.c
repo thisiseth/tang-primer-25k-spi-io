@@ -1404,7 +1404,7 @@ int COM_FindFile (char *filename, int *handle, FILE **file)
 					}
 					else
 					{       // open a new file on the pakfile
-						*file = fopen (pak->filename, "rb");
+						*file = quake_fopen (pak->filename, "rb");
 						if (*file)
 							fseek (*file, pak->files[i].filepos, SEEK_SET);
 					}
@@ -1455,7 +1455,7 @@ int COM_FindFile (char *filename, int *handle, FILE **file)
 			else
 			{
 				Sys_FileClose (i);
-				*file = fopen (netpath, "rb");
+				*file = quake_fopen (netpath, "rb");
 			}
 			return com_filesize;
 		}
