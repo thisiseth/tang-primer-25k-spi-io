@@ -60,7 +60,7 @@ void user_task(void *arg)
 {
     running_led();
 
-    quake_main("/"ESP32_QUAKE_PAK_NAME, ESP32_QUAKE_PAK_SIZE, pak_mmap);
+    quake_main("/id1/"ESP32_QUAKE_PAK_NAME, ESP32_QUAKE_PAK_SIZE, pak_mmap);
 
     esp_partition_munmap(pak_mmap_handle);
 

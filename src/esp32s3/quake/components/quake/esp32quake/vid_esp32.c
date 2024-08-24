@@ -34,15 +34,16 @@ byte	surfcache[256*1024];
 unsigned short	d_8to16table[256];
 unsigned	d_8to24table[256];
 
-void	VID_SetPalette (unsigned char *palette)
+void VID_SetPalette (unsigned char *palette)
 {
 }
 
-void	VID_ShiftPalette (unsigned char *palette)
+void VID_ShiftPalette(unsigned char *p)
 {
+	VID_SetPalette(p);
 }
 
-void	VID_Init (unsigned char *palette)
+void VID_Init (unsigned char *palette)
 {
 	vid.maxwarpwidth = vid.width = vid.conwidth = BASEWIDTH;
 	vid.maxwarpheight = vid.height = vid.conheight = BASEHEIGHT;
@@ -57,11 +58,11 @@ void	VID_Init (unsigned char *palette)
 	D_InitCaches (surfcache, sizeof(surfcache));
 }
 
-void	VID_Shutdown (void)
+void VID_Shutdown (void)
 {
 }
 
-void	VID_Update (vrect_t *rects)
+void VID_Update (vrect_t *rects)
 {
 }
 

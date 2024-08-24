@@ -22,6 +22,26 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "errno.h"
 
+#include "esp_timer.h"
+#include <sys/stat.h>
+
+#define MAX_HANDLES 10
+
+typedef struct 
+{
+	bool isOpen;
+	FILE *file;
+	uint32_t mmapOffset;
+} file_handle_t;
+
+static file_handle_t sys_handles[MAX_HANDLES];
+
+static bool sys_quit = false;
+
+static const char *mmap_pak_path;
+static uint32_t mmap_pak_size;
+static const void *mmap_pak;
+
 /*
 ===============================================================================
 
@@ -30,44 +50,49 @@ FILE IO
 ===============================================================================
 */
 
-#define MAX_HANDLES             10
-FILE    *sys_handles[MAX_HANDLES];
-
-int             findhandle (void)
+static int findhandle(void)
 {
-	int             i;
+	int i;
 	
-	for (i=1 ; i<MAX_HANDLES ; i++)
-		if (!sys_handles[i])
+	for (i = 1; i < MAX_HANDLES; ++i)
+		if (!sys_handles[i].isOpen)
 			return i;
-	Sys_Error ("out of handles");
+
+	Sys_Error("out of handles");
 	return -1;
 }
 
-/*
-================
-filelength
-================
-*/
-int filelength (FILE *f)
+static int filelength(FILE *f)
 {
-	int             pos;
-	int             end;
+	int pos;
+	int end;
 
-	pos = ftell (f);
-	fseek (f, 0, SEEK_END);
-	end = ftell (f);
-	fseek (f, pos, SEEK_SET);
+	pos = ftell(f);
+	fseek(f, 0, SEEK_END);
+	end = ftell(f);
+	fseek(f, pos, SEEK_SET);
 
 	return end;
 }
 
-int Sys_FileOpenRead (char *path, int *hndl)
+int Sys_FileOpenRead(char *path, int *hndl)
 {
-	FILE    *f;
-	int             i;
+	FILE *f;
+	int i;
 	
-	i = findhandle ();
+	printf("Sys_FileOpenRead call: %s\n", path);
+
+	i = findhandle();
+	
+	//mmap hook
+	if (!strcmp(path, mmap_pak_path))
+	{
+		sys_handles[i].isOpen = true;
+		sys_handles[i].mmapOffset = 0;
+		
+		*hndl = i;
+		return mmap_pak_size;
+	}
 
 	f = fopen(path, "rb");
 	if (!f)
@@ -75,52 +100,96 @@ int Sys_FileOpenRead (char *path, int *hndl)
 		*hndl = -1;
 		return -1;
 	}
-	sys_handles[i] = f;
+
+	sys_handles[i].isOpen = true;
+	sys_handles[i].file = f;
+
 	*hndl = i;
 	
 	return filelength(f);
 }
 
-int Sys_FileOpenWrite (char *path)
+int Sys_FileOpenWrite(char *path)
 {
-	FILE    *f;
-	int             i;
+	FILE *f;
+	int i;
 	
-	i = findhandle ();
+	printf("Sys_FileOpenWrite call: %s\n", path);
+
+	if (!strcmp(path, mmap_pak_path))
+		Sys_Error("attempt to write to mmaped pak file");
+
+	i = findhandle();
 
 	f = fopen(path, "wb");
+
 	if (!f)
 		Sys_Error ("Error opening %s: %s", path,strerror(errno));
-	sys_handles[i] = f;
+
+	sys_handles[i].isOpen = true;
+	sys_handles[i].file = f;
 	
 	return i;
 }
 
-void Sys_FileClose (int handle)
+void Sys_FileClose(int handle)
 {
-	fclose (sys_handles[handle]);
-	sys_handles[handle] = NULL;
+	if (sys_handles[handle].file != NULL)
+	{
+		fclose(sys_handles[handle].file);
+		sys_handles[handle].file = NULL;
+	}
+
+	sys_handles[handle].isOpen = false;
 }
 
-void Sys_FileSeek (int handle, int position)
+void Sys_FileSeek(int handle, int position)
 {
-	fseek (sys_handles[handle], position, SEEK_SET);
+	assert(sys_handles[handle].isOpen);
+
+	if (sys_handles[handle].file == NULL)
+	{
+		sys_handles[handle].mmapOffset = position;
+		return;
+	}
+
+	fseek(sys_handles[handle].file, position, SEEK_SET);
 }
 
-int Sys_FileRead (int handle, void *dest, int count)
+int Sys_FileRead(int handle, void *dest, int count)
 {
-	return fread (dest, 1, count, sys_handles[handle]);
-}
-
-int Sys_FileWrite (int handle, void *data, int count)
-{
-	return fwrite (data, 1, count, sys_handles[handle]);
-}
-
-int     Sys_FileTime (char *path)
-{
-	FILE    *f;
+	assert(sys_handles[handle].isOpen);
 	
+	if (sys_handles[handle].file == NULL)
+	{
+		if (sys_handles[handle].mmapOffset >= mmap_pak_size)
+			return 0;
+
+		if (sys_handles[handle].mmapOffset + count > mmap_pak_size)
+			count = mmap_pak_size - sys_handles[handle].mmapOffset;
+
+		memcpy(dest, mmap_pak + sys_handles[handle].mmapOffset, count);
+		sys_handles[handle].mmapOffset += count;
+		return count;
+	}
+
+	return fread(dest, 1, count, sys_handles[handle].file);
+}
+
+int Sys_FileWrite(int handle, void *data, int count)
+{
+	assert(sys_handles[handle].isOpen && sys_handles[handle].file != NULL);
+
+	return fwrite(data, 1, count, sys_handles[handle].file);
+}
+
+int Sys_FileTime(char *path)
+{
+	FILE *f;
+	
+	if (!strcmp(path, mmap_pak_path))
+		return 1;
+
 	f = fopen(path, "rb");
 	if (f)
 	{
@@ -131,10 +200,11 @@ int     Sys_FileTime (char *path)
 	return -1;
 }
 
-void Sys_mkdir (char *path)
-{
+void Sys_mkdir(char *path)
+{    
+    if (mkdir(path, 0755) != 0)
+        printf("Sys_mkdir: unable to create %s: %s\n", path, strerror(errno));
 }
-
 
 /*
 ===============================================================================
@@ -144,12 +214,12 @@ SYSTEM IO
 ===============================================================================
 */
 
-void Sys_MakeCodeWriteable (unsigned long startaddr, unsigned long length)
+void Sys_MakeCodeWriteable(unsigned long startaddr, unsigned long length)
 {
+	//something from very early days
 }
 
-
-void Sys_Error (char *error, ...)
+void Sys_Error(char *error, ...)
 {
 	va_list         argptr;
 
@@ -162,7 +232,7 @@ void Sys_Error (char *error, ...)
 	exit (1);
 }
 
-void Sys_Printf (char *fmt, ...)
+void Sys_Printf(char *fmt, ...)
 {
 	va_list         argptr;
 	
@@ -171,50 +241,52 @@ void Sys_Printf (char *fmt, ...)
 	va_end (argptr);
 }
 
-void Sys_Quit (void)
-{
-	exit (0);
+void Sys_Quit(void)
+{	
+	sys_quit = true;
 }
 
-double Sys_FloatTime (void)
+double Sys_FloatTime(void)
 {
-	static double t;
-	
-	t += 0.1;
-	
-	return t;
+	return ((uint64_t)esp_timer_get_time()) / 1000000.0;
 }
 
-char *Sys_ConsoleInput (void)
+char *Sys_ConsoleInput(void)
 {
 	return NULL;
 }
 
-void Sys_Sleep (void)
+void Sys_Sleep(void)
 {
 }
 
-void Sys_SendKeyEvents (void)
+void Sys_SendKeyEvents(void)
 {
 }
 
-void Sys_HighFPPrecision (void)
+void Sys_HighFPPrecision(void)
 {
+	//not a 486
 }
 
-void Sys_LowFPPrecision (void)
+void Sys_LowFPPrecision(void)
 {
+	//not a 486
 }
 
 //=============================================================================
 
-void main (int argc, char **argv)
-{
-	static quakeparms_t    parms;
+static quakeparms_t parms;
 
-	parms.memsize = 8*1024*1024;
+void esp32_quake_main(int argc, char **argv, const char *pakPath, uint32_t pakSize, const void *pakMmap)
+{
+	mmap_pak_path = pakPath;
+	mmap_pak_size = pakSize;
+	mmap_pak = pakMmap;
+
+	parms.memsize = 6*1024*1024;
 	parms.membase = malloc (parms.memsize);
-	parms.basedir = ".";
+	parms.basedir = "/";
 
 	COM_InitArgv (argc, argv);
 
@@ -223,9 +295,17 @@ void main (int argc, char **argv)
 
 	printf ("Host_Init\n");
 	Host_Init (&parms);
-	while (1)
+
+	double oldtime = Sys_FloatTime();
+
+	while (!sys_quit)
 	{
-		Host_Frame (0.1);
+		double newtime = Sys_FloatTime ();
+		double time = newtime - oldtime;
+
+		Host_Frame (time);
+
+		oldtime = newtime;
 	}
 }
 
