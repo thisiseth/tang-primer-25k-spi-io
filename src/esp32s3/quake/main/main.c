@@ -24,6 +24,12 @@ static wl_handle_t flash_rw_wl_handle = WL_INVALID_HANDLE;
 static esp_partition_mmap_handle_t pak_mmap_handle;
 static const void *pak_mmap;
 
+#define ESP32_QUAKE_TASK_STACK_SIZE 350000
+
+static EXT_RAM_BSS_ATTR uint8_t quake_task_stack[ESP32_QUAKE_TASK_STACK_SIZE];
+static DMA_ATTR StaticTask_t quake_task_internal;
+static TaskHandle_t quake_task;
+
 static void abort_with_error_led(void)
 {
 #ifndef PMOD_OCTAL_SPI_IN_USE
@@ -135,7 +141,7 @@ void app_main(void)
         abort_with_error_led();
     }
 
-    if (xTaskCreatePinnedToCore(user_task, "user_task", 100000, NULL, tskIDLE_PRIORITY+1, NULL, 1) != pdPASS)
+    if ((quake_task = xTaskCreateStaticPinnedToCore(user_task, "user_task", ESP32_QUAKE_TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY+1, quake_task_stack, &quake_task_internal, 1)) == NULL)
     {
         ESP_LOGE(TAG, "failed to start user task");
         abort_with_error_led();
@@ -144,6 +150,9 @@ void app_main(void)
     for (;;)
     {
         vTaskDelay(5000 / portTICK_PERIOD_MS);
-        ESP_LOGI(TAG, "free heap: %lu", esp_get_free_heap_size());
+        ESP_LOGI(TAG, "free heap: all: %lu internal: %lu, task stack watermark: %u", 
+                esp_get_free_heap_size(), 
+                esp_get_free_internal_heap_size(),
+                uxTaskGetStackHighWaterMark(quake_task));
     }
 }

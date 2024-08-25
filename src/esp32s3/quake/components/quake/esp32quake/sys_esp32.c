@@ -169,12 +169,6 @@ int Sys_FileRead(int handle, void *dest, int count)
 		if ((sys_handles[handle].mmapOffset + count) > mmap_pak_size)
 			count = mmap_pak_size - sys_handles[handle].mmapOffset;
 
-		printf("reading pak: %d at %lu, heap at %lu, stack at %u\n", 
-			count, 
-			sys_handles[handle].mmapOffset, 
-			esp_get_free_heap_size(),
-			uxTaskGetStackHighWaterMark(NULL));
-
 		memcpy(dest, (const uint8_t*)mmap_pak + sys_handles[handle].mmapOffset, count);
 		sys_handles[handle].mmapOffset += count;
 		return count;
@@ -300,11 +294,15 @@ static quakeparms_t parms;
 
 void esp32_quake_main(int argc, char **argv, const char *pakPath, uint32_t pakSize, const void *pakMmap)
 {
+	printf("starting quake, heap at %lu, stack at %u\n",
+			esp_get_free_heap_size(),
+			uxTaskGetStackHighWaterMark(NULL));
+
 	mmap_pak_path = pakPath;
 	mmap_pak_size = pakSize;
 	mmap_pak = pakMmap;
 
-	parms.memsize = 6*1024*1024;
+	parms.memsize = 6500*1024;
 	parms.membase = malloc (parms.memsize);
 	parms.basedir = "/";
 
@@ -320,18 +318,18 @@ void esp32_quake_main(int argc, char **argv, const char *pakPath, uint32_t pakSi
 
 	while (!sys_quit)
 	{
-		double newtime = Sys_FloatTime ();
+		double newtime = Sys_FloatTime();
 		double time = newtime - oldtime;
 
 		Host_Frame (time);
 
 		oldtime = newtime;
 
-		printf("frame drawn, heap at %lu, stack at %u\n",
-			esp_get_free_heap_size(),
-			uxTaskGetStackHighWaterMark(NULL));
+		// printf("frame drawn, heap at %lu, stack at %u\n",
+		// 	esp_get_free_heap_size(),
+		// 	uxTaskGetStackHighWaterMark(NULL));
 
-		vTaskDelay(100 / portTICK_PERIOD_MS);
+		//vTaskDelay(100 / portTICK_PERIOD_MS);
 	}
 }
 

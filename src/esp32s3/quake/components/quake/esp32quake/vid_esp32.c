@@ -22,10 +22,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "d_local.h"
 
+#include "esp_attr.h"
+#include "fpga_driver.h"
+
 viddef_t	vid;				// global video state
 
-#define	BASEWIDTH	320
-#define	BASEHEIGHT	240
+#define	BASEWIDTH	FPGA_DRIVER_FRAME_WIDTH
+#define	BASEHEIGHT	FPGA_DRIVER_FRAME_HEIGHT
 
 uint8_t vid_buffer[BASEWIDTH*BASEHEIGHT];
 short zbuffer[BASEWIDTH*BASEHEIGHT];
@@ -34,8 +37,15 @@ uint8_t surfcache[256*1024];
 unsigned short d_8to16table[256];
 unsigned d_8to24table[256];
 
+static uint8_t *fpga_framebuffer, *fpga_palette;
+
+static uint8_t current_palette[FPGA_DRIVER_PALETTE_SIZE_BYTES];
+static int palette_set_count;
+
 void VID_SetPalette (unsigned char *palette)
 {
+	memcpy(current_palette, palette, sizeof(current_palette));
+	palette_set_count = 2;
 }
 
 void VID_ShiftPalette(unsigned char *p)
@@ -43,16 +53,20 @@ void VID_ShiftPalette(unsigned char *p)
 	VID_SetPalette(p);
 }
 
-void VID_Init (unsigned char *palette)
+void VID_Init(unsigned char *palette)
 {
-	vid.maxwarpwidth = vid.width = vid.conwidth = BASEWIDTH;
-	vid.maxwarpheight = vid.height = vid.conheight = BASEHEIGHT;
+    fpga_driver_get_framebuffer(&fpga_palette, &fpga_framebuffer);
+
+	vid.width = vid.conwidth = BASEWIDTH;
+	vid.height = vid.conheight = BASEHEIGHT;
+	vid.rowbytes = vid.conrowbytes = BASEWIDTH;
 	vid.aspect = 1.0;
 	vid.numpages = 1;
 	vid.colormap = host_colormap;
 	vid.fullbright = 256 - LittleLong (*((int *)vid.colormap + 2048));
 	vid.buffer = vid.conbuffer = vid_buffer;
-	vid.rowbytes = vid.conrowbytes = BASEWIDTH;
+	vid.maxwarpwidth = WARP_WIDTH; //dont know why but its like this for all drivers
+	vid.maxwarpheight = WARP_HEIGHT;
 	
 	d_pzbuffer = zbuffer;
 	D_InitCaches (surfcache, sizeof(surfcache));
@@ -64,6 +78,14 @@ void VID_Shutdown (void)
 
 void VID_Update (vrect_t *rects)
 {
+	if (palette_set_count > 0)
+	{
+		memcpy(fpga_palette, current_palette, sizeof(current_palette));
+		--palette_set_count;
+	}
+
+	memcpy(fpga_framebuffer, vid_buffer, sizeof(vid_buffer));
+	fpga_driver_present_frame(&fpga_palette, &fpga_framebuffer, FPGA_DRIVER_VSYNC_WAIT_IF_PREVIOUS_NOT_PRESENTED);
 }
 
 /*
@@ -74,7 +96,6 @@ D_BeginDirectRect
 void D_BeginDirectRect (int x, int y, byte *pbitmap, int width, int height)
 {
 }
-
 
 /*
 ================
