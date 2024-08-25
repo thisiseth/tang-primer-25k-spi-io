@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// sys_null.h -- null system driver to aid porting efforts
+// sys_null.c -- null system driver to aid porting efforts
 
 #include "quakedef.h"
 #include "errno.h"
@@ -25,14 +25,67 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "esp_timer.h"
 #include <sys/stat.h>
 #include "freertos/FreeRTOS.h"
+#include "freertos/ringbuf.h"
+#include "fpga_driver.h"
 
 #define MAX_HANDLES 10
 
+//keys missing from quake keys.h ?
+#define K_CAPSLOCK 0
+#define K_PRTSCR 0
+#define K_SCRLCK 0
+#define K_NUMLOCK 0
+
+#define KEYP_DIVIDE 0
+#define KEYP_MULTIPLY 0
+#define KEYP_MINUS 0
+#define KEYP_PLUS 0
+#define KEYP_ENTER 0
+#define KEYP_1 0
+#define KEYP_2 0
+#define KEYP_3 0
+#define KEYP_4 0
+#define KEYP_5 0
+#define KEYP_6 0
+#define KEYP_7 0
+#define KEYP_8 0
+#define KEYP_9 0
+#define KEYP_0 0
+#define KEYP_PERIOD 0
+#define KEYP_EQUALS 0
+
+//borrowed from chocolate doom code
+static const int scancode_to_quake_table[] = 
+{                                            
+    0,   0,   0,   0,   'a',                                  /* 0-9 */     
+    'b', 'c', 'd', 'e', 'f',                                                
+    'g', 'h', 'i', 'j', 'k',                                  /* 10-19 */   
+    'l', 'm', 'n', 'o', 'p',                                                
+    'q', 'r', 's', 't', 'u',                                  /* 20-29 */   
+    'v', 'w', 'x', 'y', 'z',                                                
+    '1', '2', '3', '4', '5',                                  /* 30-39 */   
+    '6', '7', '8', '9', '0',                                                
+    K_ENTER, K_ESCAPE, K_BACKSPACE, K_TAB, K_SPACE,           /* 40-49 */   
+    '-', '=', '[', ']', '\\',                                  
+    0,   ';', '\'', '`', ',',                                 /* 50-59 */   
+    '.', '/', K_CAPSLOCK, K_F1, K_F2,                                 
+    K_F3, K_F4, K_F5, K_F6, K_F7,                             /* 60-69 */   
+    K_F8, K_F9, K_F10, K_F11, K_F12,                              
+    K_PRTSCR, K_SCRLCK, K_PAUSE, K_INS, K_HOME,               /* 70-79 */   
+    K_PGUP, K_DEL, K_END, K_PGDN, K_RIGHTARROW,                   
+    K_LEFTARROW, K_DOWNARROW, K_UPARROW,                      /* 80-89 */   
+    K_NUMLOCK, KEYP_DIVIDE,                                               
+    KEYP_MULTIPLY, KEYP_MINUS, KEYP_PLUS, KEYP_ENTER, KEYP_1,               
+    KEYP_2, KEYP_3, KEYP_4, KEYP_5, KEYP_6,                   /* 90-99 */  
+    KEYP_7, KEYP_8, KEYP_9, KEYP_0, KEYP_PERIOD,                            
+    0, 0, 0, KEYP_EQUALS                                      /* 100-103 */ 
+};
+
 typedef struct 
 {
-	bool isOpen;
-	FILE *file;
-	uint32_t mmapOffset;
+    bool isOpen;
+    FILE *file;
+    uint32_t mmapOffset;
 } file_handle_t;
 
 static file_handle_t sys_handles[MAX_HANDLES];
@@ -42,6 +95,46 @@ static bool sys_quit = false;
 static const char *mmap_pak_path;
 static uint32_t mmap_pak_size;
 static const void *mmap_pak;
+
+static RingbufHandle_t hid_ringbuf;
+
+static void hid_callback(fpga_driver_hid_event_t hidEvent)
+{
+    switch (hidEvent.type)
+    {
+        case FPGA_DRIVER_HID_EVENT_KEY_DOWN:
+        case FPGA_DRIVER_HID_EVENT_KEY_UP:
+        case FPGA_DRIVER_HID_EVENT_MOUSE_BUTTON_DOWN:
+        case FPGA_DRIVER_HID_EVENT_MOUSE_BUTTON_UP:
+            if (xRingbufferSend(hid_ringbuf, &hidEvent, sizeof(fpga_driver_hid_event_t), 0) != pdPASS)
+                printf("hid ringbuf full!\n");
+
+            break;
+        default:
+            break;
+    }
+}
+
+static int translate_hid_key(uint8_t keyCode)
+{
+    switch (keyCode)
+    {
+        case FPGA_DRIVER_HID_KEY_CODE_LEFT_CTRL:
+        case FPGA_DRIVER_HID_KEY_CODE_RIGHT_CTRL:
+            return K_CTRL;
+        case FPGA_DRIVER_HID_KEY_CODE_LEFT_SHIFT:
+        case FPGA_DRIVER_HID_KEY_CODE_RIGHT_SHIFT:
+            return K_SHIFT;
+        case FPGA_DRIVER_HID_KEY_CODE_LEFT_ALT:
+        case FPGA_DRIVER_HID_KEY_CODE_RIGHT_ALT:
+            return K_ALT;
+        default:
+            if (keyCode < (sizeof(scancode_to_quake_table)/sizeof(scancode_to_quake_table[0])))
+                return scancode_to_quake_table[keyCode];
+            else
+                return 0;
+    }
+}
 
 /*
 ===============================================================================
@@ -53,158 +146,165 @@ FILE IO
 
 static int findhandle(void)
 {
-	int i;
-	
-	for (i = 1; i < MAX_HANDLES; ++i)
-		if (!sys_handles[i].isOpen)
-			return i;
+    int i;
+    
+    for (i = 1; i < MAX_HANDLES; ++i)
+        if (!sys_handles[i].isOpen)
+            return i;
 
-	Sys_Error("out of handles");
-	return -1;
+    Sys_Error("out of handles");
+    return -1;
 }
 
 static int filelength(FILE *f)
 {
-	int pos;
-	int end;
+    int pos;
+    int end;
 
-	pos = ftell(f);
-	fseek(f, 0, SEEK_END);
-	end = ftell(f);
-	fseek(f, pos, SEEK_SET);
+    pos = ftell(f);
+    fseek(f, 0, SEEK_END);
+    end = ftell(f);
+    fseek(f, pos, SEEK_SET);
 
-	return end;
+    return end;
 }
 
 int Sys_FileOpenRead(char *path, int *hndl)
 {
-	FILE *f;
-	int i;
-	
-	printf("Sys_FileOpenRead call: %s\n", path);
+    FILE *f;
+    int i;
+    
+    printf("Sys_FileOpenRead call: %s\n", path);
 
-	i = findhandle();
-	
-	//mmap hook
-	if (!strcmp(path, mmap_pak_path))
-	{
-		sys_handles[i].isOpen = true;
-		sys_handles[i].mmapOffset = 0;
-		
-		*hndl = i;
-		return mmap_pak_size;
-	}
+    i = findhandle();
+    
+    //mmap hook
+    if (!strcmp(path, mmap_pak_path))
+    {
+        sys_handles[i].isOpen = true;
+        sys_handles[i].mmapOffset = 0;
+        
+        *hndl = i;
+        return mmap_pak_size;
+    }
 
-	f = fopen(path, "rb");
-	if (!f)
-	{
-		*hndl = -1;
-		return -1;
-	}
+    f = fopen(path, "rb");
+    if (!f)
+    {
+        *hndl = -1;
+        return -1;
+    }
 
-	sys_handles[i].isOpen = true;
-	sys_handles[i].file = f;
+    sys_handles[i].isOpen = true;
+    sys_handles[i].file = f;
 
-	*hndl = i;
-	
-	return filelength(f);
+    *hndl = i;
+    
+    return filelength(f);
 }
 
 int Sys_FileOpenWrite(char *path)
 {
-	FILE *f;
-	int i;
-	
-	printf("Sys_FileOpenWrite call: %s\n", path);
+    FILE *f;
+    int i;
+    
+    printf("Sys_FileOpenWrite call: %s\n", path);
 
-	if (!strcmp(path, mmap_pak_path))
-		Sys_Error("attempt to write to mmaped pak file");
+    if (!strcmp(path, mmap_pak_path))
+        Sys_Error("attempt to write to mmaped pak file");
 
-	i = findhandle();
+    i = findhandle();
 
-	f = fopen(path, "wb");
+    f = fopen(path, "wb");
 
-	if (!f)
-		Sys_Error ("Error opening %s: %s", path,strerror(errno));
+    if (!f)
+        Sys_Error ("Error opening %s: %s", path,strerror(errno));
 
-	sys_handles[i].isOpen = true;
-	sys_handles[i].file = f;
-	
-	return i;
+    sys_handles[i].isOpen = true;
+    sys_handles[i].file = f;
+    
+    return i;
 }
 
 void Sys_FileClose(int handle)
 {
-	if (sys_handles[handle].file != NULL)
-	{
-		fclose(sys_handles[handle].file);
-		sys_handles[handle].file = NULL;
-	}
+    if (sys_handles[handle].file != NULL)
+    {
+        fclose(sys_handles[handle].file);
+        sys_handles[handle].file = NULL;
+    }
 
-	sys_handles[handle].isOpen = false;
+    sys_handles[handle].isOpen = false;
 }
 
 void Sys_FileSeek(int handle, int position)
 {
-	assert(sys_handles[handle].isOpen);
+    assert(sys_handles[handle].isOpen);
 
-	if (sys_handles[handle].file == NULL)
-	{
-		sys_handles[handle].mmapOffset = position;
-		return;
-	}
+    if (sys_handles[handle].file == NULL)
+    {
+        sys_handles[handle].mmapOffset = position;
+        return;
+    }
 
-	fseek(sys_handles[handle].file, position, SEEK_SET);
+    fseek(sys_handles[handle].file, position, SEEK_SET);
 }
 
 int Sys_FileRead(int handle, void *dest, int count)
 {
-	assert(sys_handles[handle].isOpen);
-	
-	if (sys_handles[handle].file == NULL)
-	{
-		if (sys_handles[handle].mmapOffset >= mmap_pak_size)
-			return 0;
+    assert(sys_handles[handle].isOpen);
+    
+    if (sys_handles[handle].file == NULL)
+    {
+        if (sys_handles[handle].mmapOffset >= mmap_pak_size)
+            return 0;
 
-		if ((sys_handles[handle].mmapOffset + count) > mmap_pak_size)
-			count = mmap_pak_size - sys_handles[handle].mmapOffset;
+        if ((sys_handles[handle].mmapOffset + count) > mmap_pak_size)
+            count = mmap_pak_size - sys_handles[handle].mmapOffset;
 
-		memcpy(dest, (const uint8_t*)mmap_pak + sys_handles[handle].mmapOffset, count);
-		sys_handles[handle].mmapOffset += count;
-		return count;
-	}
+        memcpy(dest, (const uint8_t*)mmap_pak + sys_handles[handle].mmapOffset, count);
+        sys_handles[handle].mmapOffset += count;
+        return count;
+    }
 
-	return fread(dest, 1, count, sys_handles[handle].file);
+    return fread(dest, 1, count, sys_handles[handle].file);
 }
 
 int Sys_FileWrite(int handle, void *data, int count)
 {
-	assert(sys_handles[handle].isOpen && sys_handles[handle].file != NULL);
+    assert(sys_handles[handle].isOpen && sys_handles[handle].file != NULL);
 
-	return fwrite(data, 1, count, sys_handles[handle].file);
+    return fwrite(data, 1, count, sys_handles[handle].file);
 }
 
 int Sys_FileTime(char *path)
 {
-	FILE *f;
-	
-	if (!strcmp(path, mmap_pak_path))
-		return 1;
+    FILE *f;
+    
+    if (!strcmp(path, mmap_pak_path))
+        return 1;
 
-	f = fopen(path, "rb");
-	if (f)
-	{
-		fclose(f);
-		return 1;
-	}
-	
-	return -1;
+    f = fopen(path, "rb");
+    if (f)
+    {
+        fclose(f);
+        return 1;
+    }
+    
+    return -1;
 }
 
 void Sys_mkdir(char *path)
 {    
     if (mkdir(path, 0755) != 0)
         printf("Sys_mkdir: unable to create %s: %s\n", path, strerror(errno));
+}
+
+void* Sys_FileGetMmapBase(int handle)
+{
+    assert(sys_handles[handle].isOpen);
+
+    return sys_handles[handle].file == NULL ? mmap_pak : NULL;
 }
 
 /*
@@ -217,44 +317,44 @@ SYSTEM IO
 
 void Sys_MakeCodeWriteable(unsigned long startaddr, unsigned long length)
 {
-	//something from very early days
+    //something from very early days
 }
 
 void Sys_Error(char *error, ...)
 {
-	va_list         argptr;
+    va_list         argptr;
 
-	printf ("Sys_Error: ");   
-	va_start (argptr,error);
-	vprintf (error,argptr);
-	va_end (argptr);
-	printf ("\n");
+    printf ("Sys_Error: ");   
+    va_start (argptr,error);
+    vprintf (error,argptr);
+    va_end (argptr);
+    printf ("\n");
 
-	exit (1);
+    exit (1);
 }
 
 void Sys_Printf(char *fmt, ...)
 {
-	va_list         argptr;
-	
-	va_start (argptr,fmt);
-	vprintf (fmt,argptr);
-	va_end (argptr);
+    va_list         argptr;
+    
+    va_start (argptr,fmt);
+    vprintf (fmt,argptr);
+    va_end (argptr);
 }
 
 void Sys_Quit(void)
 {	
-	sys_quit = true;
+    sys_quit = true;
 }
 
 double Sys_FloatTime(void)
 {
-	return ((uint64_t)esp_timer_get_time()) / 1000000.0;
+    return ((uint64_t)esp_timer_get_time()) / 1000000.0;
 }
 
 char *Sys_ConsoleInput(void)
 {
-	return NULL;
+    return NULL;
 }
 
 void Sys_Sleep(void)
@@ -262,30 +362,56 @@ void Sys_Sleep(void)
 }
 
 void Sys_SendKeyEvents(void)
-{
+{    
+    fpga_driver_hid_event_t* hid_event;
+    size_t item_size;
+
+    while ((hid_event = (fpga_driver_hid_event_t*)xRingbufferReceive(hid_ringbuf, &item_size, 0)) != NULL)
+    {
+        assert(item_size == sizeof(fpga_driver_hid_event_t));
+
+        switch (hid_event->type)
+        {
+            case FPGA_DRIVER_HID_EVENT_KEY_DOWN:
+            case FPGA_DRIVER_HID_EVENT_KEY_UP:
+                Key_Event(translate_hid_key(hid_event->keyEvent.keyCode), 
+                          hid_event->type == FPGA_DRIVER_HID_EVENT_KEY_DOWN);
+                break;
+            case FPGA_DRIVER_HID_EVENT_MOUSE_BUTTON_DOWN:
+            case FPGA_DRIVER_HID_EVENT_MOUSE_BUTTON_UP:  
+                Key_Event(K_MOUSE1 + __builtin_ctz(hid_event->mouseButtonEvent.buttonCode) - 1, 
+                          hid_event->type == FPGA_DRIVER_HID_EVENT_MOUSE_BUTTON_DOWN);
+                break;
+
+            default:
+                break;
+        }
+
+        vRingbufferReturnItem(hid_ringbuf, hid_event);
+    }
 }
 
 void Sys_HighFPPrecision(void)
 {
-	//not a 486
+    //not a 486
 }
 
 void Sys_LowFPPrecision(void)
 {
-	//not a 486
+    //not a 486
 }
 
 FILE* quake_fopen(const char *name, const char *type)
 {
-	if (!strcmp(name, mmap_pak_path))
-	{
-		if (strcmp(type, "rb"))
-			Sys_Error("quake_fopen: invalid mode %s for mmapped %s\n", type, name);
+    if (!strcmp(name, mmap_pak_path))
+    {
+        if (strcmp(type, "rb"))
+            Sys_Error("quake_fopen: invalid mode %s for mmapped %s\n", type, name);
 
-		return fmemopen((void*)mmap_pak, mmap_pak_size, "rb");
-	}
+        return fmemopen((void*)mmap_pak, mmap_pak_size, "rb");
+    }
 
-	return fopen(name, type);
+    return fopen(name, type);
 }
 
 //=============================================================================
@@ -294,43 +420,53 @@ static quakeparms_t parms;
 
 void esp32_quake_main(int argc, char **argv, const char *pakPath, uint32_t pakSize, const void *pakMmap)
 {
-	printf("starting quake, heap at %lu, stack at %u\n",
-			esp_get_free_heap_size(),
-			uxTaskGetStackHighWaterMark(NULL));
+    mmap_pak_path = pakPath;
+    mmap_pak_size = pakSize;
+    mmap_pak = pakMmap;
 
-	mmap_pak_path = pakPath;
-	mmap_pak_size = pakSize;
-	mmap_pak = pakMmap;
+    parms.memsize = 6700*1024;
+    parms.membase = malloc(parms.memsize);
+    parms.basedir = "/";
 
-	parms.memsize = 6500*1024;
-	parms.membase = malloc (parms.memsize);
-	parms.basedir = "/";
+    if (parms.membase == NULL)
+        Sys_Error("membase allocation failed\n");
 
-	COM_InitArgv (argc, argv);
+    COM_InitArgv (argc, argv);
 
-	parms.argc = com_argc;
-	parms.argv = com_argv;
+    parms.argc = com_argc;
+    parms.argv = com_argv;
 
-	printf ("Host_Init\n");
-	Host_Init (&parms);
+    printf ("Host_Init\n");
+    Host_Init (&parms);
+    
+    hid_ringbuf = xRingbufferCreateWithCaps((sizeof(fpga_driver_hid_event_t)+8)*128, RINGBUF_TYPE_NOSPLIT, MALLOC_CAP_INTERNAL);
 
-	double oldtime = Sys_FloatTime();
+    if (hid_ringbuf == NULL)
+        Sys_Error("unable to allocate hid_ringbuf\n");
 
-	while (!sys_quit)
-	{
-		double newtime = Sys_FloatTime();
-		double time = newtime - oldtime;
+    fpga_driver_register_hid_event_cb(hid_callback);
 
-		Host_Frame (time);
+    ////////////////
 
-		oldtime = newtime;
+    double oldtime = Sys_FloatTime();
 
-		// printf("frame drawn, heap at %lu, stack at %u\n",
-		// 	esp_get_free_heap_size(),
-		// 	uxTaskGetStackHighWaterMark(NULL));
+    while (!sys_quit)
+    {
+        double newtime = Sys_FloatTime();
+        double time = newtime - oldtime;
 
-		//vTaskDelay(100 / portTICK_PERIOD_MS);
-	}
+        Host_Frame (time);
+
+        oldtime = newtime;
+
+        // printf("frame drawn, heap at %lu, stack at %u\n",
+        // 	esp_get_free_heap_size(),
+        // 	uxTaskGetStackHighWaterMark(NULL));
+
+        //vTaskDelay(100 / portTICK_PERIOD_MS);
+    }
+
+    fpga_driver_register_hid_event_cb(NULL);
 }
 
 

@@ -62,13 +62,14 @@ set(WINQUAKE_SRCS
 	winquake/sv_user.c
 
 	winquake/cd_null.c
-	winquake/snd_null.c
-	winquake/net_none.c)
+	winquake/net_none.c
+	winquake/snd_mem.c)
 
 set(ESP32QUAKE_SRCS
 	esp32quake/in_esp32.c
 	esp32quake/sys_esp32.c
-	esp32quake/vid_esp32.c)
+	esp32quake/vid_esp32.c
+	esp32quake/snd_esp32.c)
 
 idf_component_register(SRCS ${WINQUAKE_SRCS} ${ESP32QUAKE_SRCS} quake_main.c
                     INCLUDE_DIRS "."

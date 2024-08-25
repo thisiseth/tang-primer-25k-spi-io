@@ -44,32 +44,32 @@ static int palette_set_count;
 
 void VID_SetPalette (unsigned char *palette)
 {
-	memcpy(current_palette, palette, FPGA_DRIVER_PALETTE_SIZE_BYTES);
-	palette_set_count = 2;
+    memcpy(current_palette, palette, FPGA_DRIVER_PALETTE_SIZE_BYTES);
+    palette_set_count = 2;
 }
 
 void VID_ShiftPalette(unsigned char *p)
 {
-	VID_SetPalette(p);
+    VID_SetPalette(p);
 }
 
 void VID_Init(unsigned char *palette)
 {
     fpga_driver_get_framebuffer(&fpga_palette, &fpga_framebuffer);
 
-	vid.width = vid.conwidth = BASEWIDTH;
-	vid.height = vid.conheight = BASEHEIGHT;
-	vid.rowbytes = vid.conrowbytes = BASEWIDTH;
-	vid.aspect = 1.0;
-	vid.numpages = 1;
-	vid.colormap = host_colormap;
-	vid.fullbright = 256 - LittleLong (*((int *)vid.colormap + 2048));
-	vid.buffer = vid.conbuffer = fpga_framebuffer;
-	vid.maxwarpwidth = WARP_WIDTH; //dont know why but its like this for all drivers
-	vid.maxwarpheight = WARP_HEIGHT;
-	
-	d_pzbuffer = zbuffer;
-	D_InitCaches (surfcache, sizeof(surfcache));
+    vid.width = vid.conwidth = BASEWIDTH;
+    vid.height = vid.conheight = BASEHEIGHT;
+    vid.rowbytes = vid.conrowbytes = BASEWIDTH;
+    vid.aspect = 1.0;
+    vid.numpages = 1;
+    vid.colormap = host_colormap;
+    vid.fullbright = 256 - LittleLong (*((int *)vid.colormap + 2048));
+    vid.buffer = vid.conbuffer = fpga_framebuffer;
+    vid.maxwarpwidth = WARP_WIDTH; //dont know why but its like this for all drivers
+    vid.maxwarpheight = WARP_HEIGHT;
+    
+    d_pzbuffer = zbuffer;
+    D_InitCaches (surfcache, sizeof(surfcache));
 }
 
 void VID_Shutdown (void)
@@ -78,18 +78,18 @@ void VID_Shutdown (void)
 
 void VID_Update (vrect_t *rects)
 {
-	if (palette_set_count > 0)
-	{
-		memcpy(fpga_palette, current_palette, sizeof(current_palette));
-		--palette_set_count;
-	}
+    if (palette_set_count > 0)
+    {
+        memcpy(fpga_palette, current_palette, sizeof(current_palette));
+        --palette_set_count;
+    }
 
-	const void *oldBuffer = fpga_framebuffer;
+    const void *oldBuffer = fpga_framebuffer;
 
-	fpga_driver_present_frame(&fpga_palette, &fpga_framebuffer, FPGA_DRIVER_VSYNC_WAIT_IF_PREVIOUS_NOT_PRESENTED);
+    fpga_driver_present_frame(&fpga_palette, &fpga_framebuffer, FPGA_DRIVER_VSYNC_WAIT_IF_PREVIOUS_NOT_PRESENTED);
 
-	memcpy(fpga_framebuffer, oldBuffer, FPGA_DRIVER_FRAMEBUFFER_SIZE_BYTES); //well.. i dont want to understand how to hook up proper buffer switching here
-	vid.buffer = vid.conbuffer = fpga_framebuffer;
+    memcpy(fpga_framebuffer, oldBuffer, FPGA_DRIVER_FRAMEBUFFER_SIZE_BYTES); //well.. i dont want to understand how to hook up proper buffer switching here
+    vid.buffer = vid.conbuffer = fpga_framebuffer;
 }
 
 /*

@@ -177,6 +177,9 @@ byte *COM_LoadTempFile (char *path);
 byte *COM_LoadHunkFile (char *path);
 void COM_LoadCacheFile (char *path, struct cache_user_s *cu);
 
+#ifdef ESP32_QUAKE
+byte *COM_LoadMmapFile(char *path);
+#endif
 
 extern	struct cvar_s	registered;
 
