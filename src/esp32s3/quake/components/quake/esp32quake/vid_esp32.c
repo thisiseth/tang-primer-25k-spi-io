@@ -30,21 +30,21 @@ viddef_t	vid;				// global video state
 #define	BASEWIDTH	FPGA_DRIVER_FRAME_WIDTH
 #define	BASEHEIGHT	FPGA_DRIVER_FRAME_HEIGHT
 
-uint8_t vid_buffer[BASEWIDTH*BASEHEIGHT];
-short zbuffer[BASEWIDTH*BASEHEIGHT];
-uint8_t surfcache[256*1024];
+static short zbuffer[BASEWIDTH*BASEHEIGHT];
+static uint8_t surfcache[256*1024];
 
-unsigned short d_8to16table[256];
-unsigned d_8to24table[256];
+//not used
+const unsigned short * const d_8to16table = NULL;
+const unsigned * const d_8to24table = NULL;
 
 static uint8_t *fpga_framebuffer, *fpga_palette;
 
-static uint8_t current_palette[FPGA_DRIVER_PALETTE_SIZE_BYTES];
+static DMA_ATTR uint8_t current_palette[FPGA_DRIVER_PALETTE_SIZE_BYTES];
 static int palette_set_count;
 
 void VID_SetPalette (unsigned char *palette)
 {
-	memcpy(current_palette, palette, sizeof(current_palette));
+	memcpy(current_palette, palette, FPGA_DRIVER_PALETTE_SIZE_BYTES);
 	palette_set_count = 2;
 }
 
@@ -64,7 +64,7 @@ void VID_Init(unsigned char *palette)
 	vid.numpages = 1;
 	vid.colormap = host_colormap;
 	vid.fullbright = 256 - LittleLong (*((int *)vid.colormap + 2048));
-	vid.buffer = vid.conbuffer = vid_buffer;
+	vid.buffer = vid.conbuffer = fpga_framebuffer;
 	vid.maxwarpwidth = WARP_WIDTH; //dont know why but its like this for all drivers
 	vid.maxwarpheight = WARP_HEIGHT;
 	
@@ -84,8 +84,12 @@ void VID_Update (vrect_t *rects)
 		--palette_set_count;
 	}
 
-	memcpy(fpga_framebuffer, vid_buffer, sizeof(vid_buffer));
+	const void *oldBuffer = fpga_framebuffer;
+
 	fpga_driver_present_frame(&fpga_palette, &fpga_framebuffer, FPGA_DRIVER_VSYNC_WAIT_IF_PREVIOUS_NOT_PRESENTED);
+
+	memcpy(fpga_framebuffer, oldBuffer, FPGA_DRIVER_FRAMEBUFFER_SIZE_BYTES); //well.. i dont want to understand how to hook up proper buffer switching here
+	vid.buffer = vid.conbuffer = fpga_framebuffer;
 }
 
 /*

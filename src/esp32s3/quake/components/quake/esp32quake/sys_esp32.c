@@ -282,7 +282,7 @@ FILE* quake_fopen(const char *name, const char *type)
 		if (strcmp(type, "rb"))
 			Sys_Error("quake_fopen: invalid mode %s for mmapped %s\n", type, name);
 
-		return fmemopen(mmap_pak, mmap_pak_size, "rb");
+		return fmemopen((void*)mmap_pak, mmap_pak_size, "rb");
 	}
 
 	return fopen(name, type);

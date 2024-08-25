@@ -54,8 +54,15 @@ typedef struct
 } viddef_t;
 
 extern	viddef_t	vid;				// global video state
+
+#ifndef ESP32_QUAKE
 extern	unsigned short	d_8to16table[256];
 extern	unsigned	d_8to24table[256];
+#else
+extern const unsigned short * const d_8to16table;
+extern const unsigned * const d_8to24table;
+#endif
+
 extern void (*vid_menudrawfn)(void);
 extern void (*vid_menukeyfn)(int key);
 
