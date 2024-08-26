@@ -95,16 +95,34 @@ Shareware DOOM1.WAD fits into ESP32-S3 N8R2 module (8MB flash 2MB PSRAM), while 
 ### Doom demo (YouTube)
 [![youtube](https://img.youtube.com/vi/MOvzoBieVqo/hqdefault.jpg)](https://www.youtube.com/watch?v=MOvzoBieVqo)
 
+## One more thing...
+Well, even IKEA light bulb these days can run Doom, and ESP32-S3 is obviously a much more capable CPU. 
+
+And with its floating point performance, i'd say it's at least a... Quake-class CPU.
+
+![plot](./doc/quake1.jpg)
+
+* Vanilla WinQuake at 320*240!
+* Sound has been rewritten from scratch to run on the second core
+* pak0.pak is read through raw **mmap**
+* Requires 8 megs of RAM and at least 20 megabytes of flash for shareware pak0.pak, so N32R8V is the only supported module
+* Quake is VERY stack heavy - vanilla rendering takes up to 300kb of stack, so i had to move stack to PSRAM...
+* ...which disables FATFS spiflash routines, so no saves and configs :(
+* Haven't played Quake on a 486, but [i bet ESP32-S3 runs it better!](./doc/quake2.jpg)
+
 ## Credits
 ### Gowin GW5A-25 FPGA side
 * HDMI video and audio encoder: [hdmi](https://github.com/hdl-util/hdmi/) by [Sameer Puri](https://github.com/sameer), dual-licensed under MIT and Apache 2.0
 * USB HID mouse and keyboard handling: based on [usb_host](https://github.com/emard/usb_host) by [emard](https://github.com/emard), includes BSD licensed code
 
-### ESP32S3 'CPU' side
+### ESP32-S3 'CPU' side
 #### Doom port
 * [Chocolate Doom](https://github.com/chocolate-doom/chocolate-doom) by https://www.chocolate-doom.org/, licensed under GPLv2
 * ["Woody" OPL3 emulator](https://github.com/rofl0r/woody-opl) by [DOSBox team](https://www.dosbox.com/crew.php), DOSBox is licensed under GPLv2
 * Doom optimizations: [rp2040-doom](https://github.com/kilograham/rp2040-doom) by [Graham Sanderson](https://github.com/kilograham), licensed under GPLv2
+
+#### Quake port
+* [WinQuake](https://github.com/id-Software/Quake) by [id Software](https://www.idsoftware.com/), licensed under GPLv2
 
 ## Licence
 All code being a part or derived from existing project (e.g. chocolate doom code) retains its original licence,
