@@ -25,7 +25,7 @@ static wl_handle_t flash_rw_wl_handle = WL_INVALID_HANDLE;
 static esp_partition_mmap_handle_t pak_mmap_handle;
 static const void *pak_mmap;
 
-#define ESP32_QUAKE_TASK_STACK_SIZE 350000
+#define ESP32_QUAKE_TASK_STACK_SIZE 300000
 
 static EXT_RAM_BSS_ATTR uint8_t quake_task_stack[ESP32_QUAKE_TASK_STACK_SIZE];
 static DMA_ATTR StaticTask_t quake_task_internal;
@@ -71,8 +71,8 @@ void user_task(void *arg)
 
     esp_partition_munmap(pak_mmap_handle);
 
-    if (esp_vfs_fat_spiflash_unmount_rw_wl(FLASH_RW_BASE, flash_rw_wl_handle) != ESP_OK)
-        ESP_LOGE(TAG, "unable to unmount flash_rw");
+    //if (esp_vfs_fat_spiflash_unmount_rw_wl(FLASH_RW_BASE, flash_rw_wl_handle) != ESP_OK)
+    //    ESP_LOGE(TAG, "unable to unmount flash_rw");
 
     vTaskDelete(NULL);
 }
@@ -120,13 +120,13 @@ void app_main(void)
 
     esp_err_t err;
 
-    err = esp_vfs_fat_spiflash_mount_rw_wl(FLASH_RW_BASE, "storage", &mount_config, &flash_rw_wl_handle);
+    //err = esp_vfs_fat_spiflash_mount_rw_wl(FLASH_RW_BASE, "storage", &mount_config, &flash_rw_wl_handle);
     
-    if (err != ESP_OK) 
-    {
-        ESP_LOGE(TAG, "Failed to mount FATFS (%s)", esp_err_to_name(err));
-        abort_with_error_led();
-    }
+    //if (err != ESP_OK) 
+    //{
+    //    ESP_LOGE(TAG, "Failed to mount FATFS (%s)", esp_err_to_name(err));
+    //    abort_with_error_led();
+    //}
 
     const esp_partition_t *partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_UNDEFINED, "pak");
 

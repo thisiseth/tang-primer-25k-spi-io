@@ -378,7 +378,7 @@ void Sys_SendKeyEvents(void)
                 break;
             case FPGA_DRIVER_HID_EVENT_MOUSE_BUTTON_DOWN:
             case FPGA_DRIVER_HID_EVENT_MOUSE_BUTTON_UP:  
-                Key_Event(K_MOUSE1 + __builtin_ctz(hid_event->mouseButtonEvent.buttonCode) - 1, 
+                Key_Event(K_MOUSE1 + __builtin_ctz(hid_event->mouseButtonEvent.buttonCode), 
                           hid_event->type == FPGA_DRIVER_HID_EVENT_MOUSE_BUTTON_DOWN);
                 break;
 
@@ -423,7 +423,7 @@ void esp32_quake_main(int argc, char **argv, const char *basedir, const char *pa
     mmap_pak_size = pakSize;
     mmap_pak = pakMmap;
 
-    parms.memsize = 6700*1024;
+    parms.memsize = 6800*1024;
     parms.membase = malloc(parms.memsize);
     parms.basedir = (char*)basedir;
 
@@ -444,6 +444,12 @@ void esp32_quake_main(int argc, char **argv, const char *basedir, const char *pa
         Sys_Error("unable to allocate hid_ringbuf\n");
 
     fpga_driver_register_hid_event_cb(hid_callback);
+
+    Cbuf_AddText("bind w +forward\n");
+    Cbuf_AddText("bind s +back\n");
+    Cbuf_AddText("bind a +moveleft\n");
+    Cbuf_AddText("bind d +moveright\n");
+    Cbuf_AddText("+mlook\n");
 
     ////////////////
 
