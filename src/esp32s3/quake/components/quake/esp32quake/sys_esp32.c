@@ -300,7 +300,7 @@ void Sys_mkdir(char *path)
         printf("Sys_mkdir: unable to create %s: %s\n", path, strerror(errno));
 }
 
-void* Sys_FileGetMmapBase(int handle)
+const void* Sys_FileGetMmapBase(int handle)
 {
     assert(sys_handles[handle].isOpen);
 

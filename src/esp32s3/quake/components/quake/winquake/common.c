@@ -1354,9 +1354,9 @@ void COM_CopyFile (char *netpath, char *cachepath)
 
 #ifdef ESP32_QUAKE
 
-void* Sys_FileGetMmapBase(int handle);
+const void* Sys_FileGetMmapBase(int handle);
 
-static int COM_FindFile_ESP32(char *filename, int *handle, FILE **file, void **mmap)
+static int COM_FindFile_ESP32(char *filename, int *handle, FILE **file, const void **mmap)
 {
     searchpath_t    *search;
     char            netpath[MAX_OSPATH];
@@ -1365,7 +1365,7 @@ static int COM_FindFile_ESP32(char *filename, int *handle, FILE **file, void **m
     int             i;
     int             findtime, cachetime;
 
-    if (file && handle || file && mmap || handle && mmap)
+    if ((file && handle) || (file && mmap) || (handle && mmap))
         Sys_Error ("COM_FindFile: both more than one of handle, file or mmap set");
     if (file == NULL && handle == NULL && mmap == NULL)
         Sys_Error ("COM_FindFile: neither handle, file or mmap set");
@@ -1405,7 +1405,7 @@ static int COM_FindFile_ESP32(char *filename, int *handle, FILE **file, void **m
                     }
                     else //mmap
                     {
-                        void *mmapBase = Sys_FileGetMmapBase(pak->handle);
+                        const uint8_t *mmapBase = Sys_FileGetMmapBase(pak->handle);
 
                         if (mmapBase == NULL)
                         {
@@ -1413,7 +1413,7 @@ static int COM_FindFile_ESP32(char *filename, int *handle, FILE **file, void **m
                             continue;
                         }
 
-                        *mmap = ((uint8_t*)mmapBase) + pak->files[i].filepos;
+                        *mmap = mmapBase + pak->files[i].filepos;
                     }
 
                     com_filesize = pak->files[i].filelen;
@@ -1741,13 +1741,13 @@ byte *COM_LoadStackFile (char *path, void *buffer, int bufsize)
 
 #ifdef ESP32_QUAKE
 
-byte* COM_LoadMmapFile(char *path)
+const byte* COM_LoadMmapFile(char *path)
 {
-    void *mmap;
+    const void *mmap;
 
     COM_FindFile_ESP32(path, NULL, NULL, &mmap);
 
-    return (byte*)mmap;
+    return (const byte*)mmap;
 }
 
 #endif
