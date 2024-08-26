@@ -110,6 +110,9 @@ And with its floating point performance, i'd say it's at least a... Quake-class 
 * ...which disables FATFS spiflash routines, so no saves and configs :(
 * Haven't played Quake on a 486, but [i bet ESP32-S3 runs it better!](./doc/quake2.jpg)
 
+### Quake demo (YouTube)
+[![youtube](https://img.youtube.com/vi/f41OkzP3Z4I/hqdefault.jpg)](https://www.youtube.com/watch?v=f41OkzP3Z4I)
+
 ## Credits
 ### Gowin GW5A-25 FPGA side
 * HDMI video and audio encoder: [hdmi](https://github.com/hdl-util/hdmi/) by [Sameer Puri](https://github.com/sameer), dual-licensed under MIT and Apache 2.0
