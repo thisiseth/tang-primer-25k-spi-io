@@ -17,8 +17,6 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// snd_null.c -- include this instead of all the other snd_* files to have
-// no sound code whatsoever
 
 #include "quakedef.h"
 
@@ -29,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define MAX_SFX 512
 
+//static sfx info allocation pool
 static sfx_t known_sfx[MAX_SFX];
 static int num_sfx;
 
@@ -37,6 +36,8 @@ static sfx_t *ambient_sfx[NUM_AMBIENTS];
 static bool	snd_ambient = 1;
 
 static SemaphoreHandle_t sound_mutex = NULL;
+
+static DMA_ATTR channel_t channels_render_copy[MAX_CHANNELS];
 
 // sound.h visible stuff
 //
@@ -48,44 +49,91 @@ cvar_t nosound = {"nosound", "0"};
 cvar_t ambient_level = {"ambient_level", "0.3"};
 cvar_t ambient_fade = {"ambient_fade", "100"};
 
+//will be used by audio task - do not touch without mutex
 DMA_ATTR channel_t channels[MAX_CHANNELS];
 int total_channels;
 
 qboolean snd_initialized = false;
 
-vec3_t		listener_origin;
-vec3_t		listener_forward;
-vec3_t		listener_right;
-vec3_t		listener_up;
-vec_t		sound_nominal_clip_dist=1000.0;
+vec3_t listener_origin;
+vec3_t listener_forward;
+vec3_t listener_right;
+vec3_t listener_up;
+vec_t sound_nominal_clip_dist = 1000.0;
+
+int paintedtime; // sample PAIRS
 
 // private or non-private but not called from other code functions
 //
 
+// from snd_mem.c
+static bool LoadSound(sfx_t *s)
+{
+    char namebuffer[256];
+
+    // load it in
+    Q_strcpy(namebuffer, "sound/");
+    Q_strcat(namebuffer, s->name);
+
+    //we dont have free ram for sfx - working from flash directly
+    const byte *data = COM_LoadMmapFile(namebuffer);
+
+    if (!data)
+    {
+        Con_Printf ("Couldn't load %s\n", namebuffer);
+        return false;
+    }
+
+    wavinfo_t info = GetWavinfo(s->name, (byte*)data, com_filesize);
+
+    if (info.channels != 1)
+    {
+        Con_Printf ("%s is a stereo sample\n",s->name);
+        return false;
+    }
+
+    assert(info.rate > 0);
+    assert(info.width == 1 || info.width == 2);
+    assert(info.loopstart >= -1);
+    assert(info.samples > 0);
+
+    s->cache.data = data + info.dataofs;
+    s->cache.sampleRate = info.rate;
+    s->cache.sampleWidth = info.width;
+    s->cache.loopStart = info.loopstart;
+    s->cache.sampleCount = info.samples;
+    
+    s->cache.stepFixedPoint = (float)info.rate * ESP32_SOUND_STEP / FPGA_DRIVER_AUDIO_SAMPLE_RATE;
+    s->cache.effectiveLength = (s->cache.sampleCount * ESP32_SOUND_STEP) / s->cache.stepFixedPoint;
+
+    return true;
+}
+
 // from snd_dma.c
+// searches for AND loads a sound if not loaded
 static sfx_t *FindSfxName(char *name)
 {
-    int		i;
-    sfx_t	*sfx;
-
-    if (!name)
+    if (name == NULL)
         Sys_Error("S_FindName: NULL\n");
 
     if (Q_strlen(name) >= MAX_QPATH)
         Sys_Error("Sound name too long: %s", name);
 
+    int i;
+
     // see if already loaded
-    for (i=0 ; i < num_sfx ; i++)
+    for (i = 0; i < num_sfx; ++i)
         if (!Q_strcmp(known_sfx[i].name, name))
             return &known_sfx[i];
 
     if (num_sfx == MAX_SFX)
         Sys_Error("S_FindName: out of sfx_t");
     
-    sfx = &known_sfx[i];
+    sfx_t *sfx = &known_sfx[i];
     strcpy(sfx->name, name);
 
-    //////// load!!!
+    if (!LoadSound(sfx))
+        return NULL;
 
     num_sfx++;
     
@@ -152,11 +200,12 @@ channel_t *SND_PickChannel(int entnum, int entchannel)
     // Check for replacement sound, or find the best one to replace
     first_to_die = -1;
     life_left = 0x7fffffff;
-    for (ch_idx=NUM_AMBIENTS ; ch_idx < NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS ; ch_idx++)
+
+    for (ch_idx = NUM_AMBIENTS; ch_idx < NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS; ++ch_idx)
     {
         if (entchannel != 0		// channel 0 never overrides
-        && channels[ch_idx].entnum == entnum
-        && (channels[ch_idx].entchannel == entchannel || entchannel == -1) )
+            && channels[ch_idx].entnum == entnum
+            && (channels[ch_idx].entchannel == entchannel || entchannel == -1))
         {	// allways override sound from same entity
             first_to_die = ch_idx;
             break;
@@ -208,16 +257,8 @@ void SND_Spatialize(channel_t *ch)
     
     dot = DotProduct(listener_right, source_vec);
 
-    if (shm->channels == 1)
-    {
-        rscale = 1.0;
-        lscale = 1.0;
-    }
-    else
-    {
-        rscale = 1.0 + dot;
-        lscale = 1.0 - dot;
-    }
+    rscale = 1.0 + dot;
+    lscale = 1.0 - dot;
 
     // add in distance effect
     scale = (1.0 - dist) * rscale;
@@ -231,9 +272,119 @@ void SND_Spatialize(channel_t *ch)
         ch->leftvol = 0;
 }
 
-static void audio_callback(uint32_t *buffer, int *sampleCount, int maxSampleCount)
+static IRAM_ATTR void audio_callback(uint32_t *buffer, int *sampleCount, int maxSampleCount)
 {
+    int32_t mixBuffer[FPGA_DRIVER_AUDIO_BUFFER_WRITE_MAX_SAMPLES*2] = {0};
 
+    xSemaphoreTake(sound_mutex, portMAX_DELAY);
+
+    memcpy(channels_render_copy, channels, sizeof(channels));
+    int totalChannelsCopy = total_channels;
+    int paintedTimeCopy = paintedtime;
+    int volumeInt = volume.value * 256;
+
+    xSemaphoreGive(sound_mutex);
+
+    //to keep track if the channel was modified during sound processing
+    int channelPositions[MAX_CHANNELS];
+
+    for (int i = 0; i < totalChannelsCopy; ++i)
+        channelPositions[i] = channels_render_copy[i].pos;
+
+    //this loop order to lower spi flash access contention with kind of bulk access
+    //i.e. read each pcm file in one pass
+    for (int i = 0; i < totalChannelsCopy; ++i)
+    {
+        if (channels_render_copy[i].sfx == NULL || 
+            (channels_render_copy[i].leftvol == 0 && channels_render_copy[i].rightvol == 0))
+            continue;
+
+        sfxcache_t cache = channels_render_copy[i].sfx->cache;
+
+        int pos = channels_render_copy[i].pos;
+        int length = channels_render_copy[i].sfx->cache.sampleCount * ESP32_SOUND_STEP;
+
+        for (int j = 0; j < maxSampleCount; ++j)
+        {
+            if (pos >= length)
+            {
+                if (channels_render_copy[i].sfx->cache.loopStart < 0)
+                    break; //no loop - thats all
+
+                pos = cache.loopStart * ESP32_SOUND_STEP + pos % length;
+                channels_render_copy[i].end = (paintedTimeCopy + j) + ((length - pos) / cache.stepFixedPoint);
+
+                assert (pos < length);
+            }
+
+            int32_t left, right;
+
+            if (cache.sampleWidth == 1) //8bit
+            {
+                int32_t sample = ((uint8_t*)cache.data)[pos / ESP32_SOUND_STEP];
+                sample -= 128;
+
+                left = sample * channels_render_copy[i].leftvol;
+                right = sample * channels_render_copy[i].rightvol;
+            }
+            else //16bit
+            {
+                int32_t sample = ((int16_t*)cache.data)[pos / ESP32_SOUND_STEP];
+
+                left = (sample * channels_render_copy[i].leftvol) >> 8;
+                right = (sample * channels_render_copy[i].rightvol) >> 8;
+            }
+
+            pos += cache.stepFixedPoint;
+
+            //my monitor is NOT happy with clipping quake sounds
+#define MONITOR_NOT_HAPPY 8
+
+#ifdef MONITOR_NOT_HAPPY
+            left /= MONITOR_NOT_HAPPY;
+            right /= MONITOR_NOT_HAPPY;
+#endif
+
+            mixBuffer[2*j] += (left*volumeInt) >> 8;
+            mixBuffer[2*j + 1] += (right*volumeInt) >> 8;
+        }
+
+        channels_render_copy[i].pos = pos;
+    }
+
+    for (int i = 0; i < maxSampleCount; ++i)
+    {
+        int32_t left = mixBuffer[2*i], right = mixBuffer[2*i + 1];
+
+        if (left > 32767)
+            left = 32767;
+        else if (left < -32767)
+            left = -32767;
+
+        if (right > 32767)
+            right = 32767;
+        else if (right < -32767)
+            right = -32767;
+
+        buffer[i] = (left & 0xFFFF) | (right << 16);
+    }
+
+    xSemaphoreTake(sound_mutex, portMAX_DELAY);
+
+    for (int i = 0; i < totalChannelsCopy; ++i)
+        if (channels_render_copy[i].sfx != NULL && 
+            channels[i].sfx == channels_render_copy[i].sfx &&
+            channels[i].pos == channelPositions[i]) //if channel was modified - ignore
+        {
+            channels[i].pos = channels_render_copy[i].pos;
+            channels[i].end = channels_render_copy[i].end;
+        }
+
+    paintedtime += maxSampleCount;
+
+    xSemaphoreGive(sound_mutex);
+
+    *sampleCount = maxSampleCount;
 }
 
 // main sound inteface
@@ -313,8 +464,8 @@ void S_StartSound(int entnum, int entchannel, sfx_t *sfx, vec3_t origin, float f
     }
 
     target_chan->sfx = sfx;
-    target_chan->pos = 0.0;
-    target_chan->end = paintedtime + sfx->cache.length;	
+    target_chan->pos = 0;
+    target_chan->end = paintedtime + sfx->cache.effectiveLength;	
 
     // if an identical sound has also been started this frame, offset the pos
     // a bit to keep it from just making the first one louder
@@ -325,14 +476,14 @@ void S_StartSound(int entnum, int entchannel, sfx_t *sfx, vec3_t origin, float f
         if (check == target_chan)
             continue;
 
-        if (check->sfx == sfx && !check->pos)
+        if (check->sfx == sfx && check->pos == 0)
         {
-            int skip = rand () % (int)(0.1*shm->speed);
+            int skip = rand () % (int)(0.1*FPGA_DRIVER_AUDIO_SAMPLE_RATE);
 
             if (skip >= target_chan->end)
                 skip = target_chan->end - 1;
 
-            target_chan->pos += skip;
+            target_chan->pos += skip*ESP32_SOUND_STEP;
             target_chan->end -= skip;
             break;
         }
@@ -352,7 +503,7 @@ void S_StaticSound(sfx_t *sfx, vec3_t origin, float vol, float attenuation)
         return;
     }
 
-    if (sfx->cache.loopstart == -1)
+    if (sfx->cache.loopStart == -1)
     {
         Con_Printf ("Sound %s not looped\n", sfx->name);
         return;
@@ -367,8 +518,10 @@ void S_StaticSound(sfx_t *sfx, vec3_t origin, float vol, float attenuation)
     VectorCopy (origin, ss->origin);
     ss->master_vol = vol;
     ss->dist_mult = (attenuation/64) / sound_nominal_clip_dist;
-    ss->end = paintedtime + sfx->cache.length;	
-    
+    ss->end = paintedtime + sfx->cache.effectiveLength;	
+    //most likely pos also should be set to 0, 
+    //however static sounds are likely destroyed only by stopall which also memsets to 0
+
     SND_Spatialize(ss);
 
     xSemaphoreGive(sound_mutex);
@@ -377,7 +530,7 @@ void S_StaticSound(sfx_t *sfx, vec3_t origin, float vol, float attenuation)
 void S_LocalSound(char *name)
 {
     if (!snd_initialized || nosound.value)
-        return NULL;
+        return;
         
     sfx_t *sfx = FindSfxName(name);
 
@@ -392,6 +545,19 @@ void S_LocalSound(char *name)
 
 void S_StopSound(int entnum, int entchannel)
 {
+    xSemaphoreTake(sound_mutex, portMAX_DELAY);
+
+    for (int i=0; i < MAX_DYNAMIC_CHANNELS; ++i)
+    {
+        if (channels[i].entnum == entnum && channels[i].entchannel == entchannel)
+        {
+            channels[i].end = 0;
+            channels[i].sfx = NULL;
+            break;;
+        }
+    }
+
+    xSemaphoreGive(sound_mutex);
 }
 
 sfx_t *S_PrecacheSound(char *name)
@@ -418,6 +584,15 @@ void S_Update(vec3_t origin, vec3_t forward, vec3_t right, vec3_t up)
     VectorCopy(up, listener_up);
 
     xSemaphoreTake(sound_mutex, portMAX_DELAY);
+
+	if (paintedtime > 0x40000000)
+	{ // time to chop things off to avoid 32 bit limits
+		paintedtime = 0;
+
+        //S_StopAllSounds
+        total_channels = MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS; 
+        memset(channels, 0, MAX_CHANNELS * sizeof(channel_t));
+	}
 
     // update general area ambient sound sources
     UpdateAmbientSounds();
@@ -453,7 +628,7 @@ void S_Update(vec3_t origin, vec3_t forward, vec3_t right, vec3_t up)
 
             // search for one
             int j;
-            combine = channels+MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS;
+            combine = channels + MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS;
 
             for (j = MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS; j < i; ++j, ++combine)
                 if (combine->sfx == ch->sfx)
@@ -475,8 +650,6 @@ void S_Update(vec3_t origin, vec3_t forward, vec3_t right, vec3_t up)
     }
 
     xSemaphoreGive(sound_mutex);
-
-    ///////
 }
 
 void S_StopAllSounds(qboolean clear)

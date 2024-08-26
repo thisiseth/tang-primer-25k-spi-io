@@ -21,62 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-#ifdef ESP32_QUAKE
-
-sfxcache_t* S_LoadSound(sfx_t *s)
-{
-    char namebuffer[256];
-    const byte *data;
-    wavinfo_t info;
-    int len;
-    sfxcache_t *sc;
-
-    // see if still in memory
-    sc = Cache_Check(&s->cache);
-    if (sc)
-        return sc;
-
-    // load it in
-    Q_strcpy(namebuffer, "sound/");
-    Q_strcat(namebuffer, s->name);
-
-    //we dont have free ram for sfx - working from flash directly
-    data = COM_LoadMmapFile(namebuffer);
-
-    if (!data)
-    {
-        Con_Printf ("Couldn't load %s\n", namebuffer);
-        return NULL;
-    }
-
-    info = GetWavinfo(s->name, data, com_filesize);
-    if (info.channels != 1)
-    {
-        Con_Printf ("%s is a stereo sample\n",s->name);
-        return NULL;
-    }
-
-    stepscale = (float)info.rate / shm->speed;	
-    len = info.samples / stepscale;
-
-    len = len * info.width * info.channels;
-
-    sc = Cache_Alloc ( &s->cache, len + sizeof(sfxcache_t), s->name);
-    if (!sc)
-        return NULL;
-    
-    sc->length = info.samples;
-    sc->loopstart = info.loopstart;
-    sc->speed = info.rate;
-    sc->width = info.width;
-    sc->stereo = info.channels;
-
-    //ResampleSfx (s, sc->speed, sc->width, data + info.dataofs);
-
-    return sc;
-}
-
-#else
+#ifndef ESP32_QUAKE
 
 int			cache_full_cycle;
 
@@ -348,15 +293,15 @@ wavinfo_t GetWavinfo (char *name, byte *wav, int wavlength)
     data_p += 4+2;
     info.width = GetLittleShort() / 8;
 
-// get cue chunk
+    // get cue chunk
     FindChunk("cue ");
     if (data_p)
     {
         data_p += 32;
         info.loopstart = GetLittleLong();
-//		Con_Printf("loopstart=%d\n", sfx->loopstart);
+        //		Con_Printf("loopstart=%d\n", sfx->loopstart);
 
-    // if the next chunk is a LIST chunk, look for a cue length marker
+        // if the next chunk is a LIST chunk, look for a cue length marker
         FindNextChunk ("LIST");
         if (data_p)
         {
@@ -365,7 +310,7 @@ wavinfo_t GetWavinfo (char *name, byte *wav, int wavlength)
                 data_p += 24;
                 i = GetLittleLong ();	// samples in loop
                 info.samples = info.loopstart + i;
-//				Con_Printf("looped length: %i\n", i);
+                //				Con_Printf("looped length: %i\n", i);
             }
         }
     }

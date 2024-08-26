@@ -34,14 +34,21 @@ typedef struct
 
 #ifdef ESP32_QUAKE
 
+#define ESP32_SOUND_STEP 4096
+
 typedef struct
 {
-    int 	length;
-    int 	loopstart;
-    int 	speed;
-    int 	width;
-    int 	stereo;
-    const byte *data;
+    uint32_t effectiveLength; //'resampled'
+
+    uint32_t stepFixedPoint;  //how many sfx samples to increment for each output sample * ESP32_QUAKE_SOUND_STEP
+                              //e.g. sfx has samplerate of 24000 and driver consumes audio at 48000
+                              //= step is 0.5 * ESP32_QUAKE_SOUND_STEP
+
+    int32_t loopStart;        //in original sample pos
+    uint32_t sampleCount;     //original sample count
+    uint32_t sampleRate;
+    uint32_t sampleWidth;
+    const uint8_t *data;      //mmaped wav data
 } sfxcache_t;
 
 typedef struct

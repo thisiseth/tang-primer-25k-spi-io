@@ -17,7 +17,6 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// sys_null.c -- null system driver to aid porting efforts
 
 #include "quakedef.h"
 #include "errno.h"
@@ -418,7 +417,7 @@ FILE* quake_fopen(const char *name, const char *type)
 
 static quakeparms_t parms;
 
-void esp32_quake_main(int argc, char **argv, const char *pakPath, uint32_t pakSize, const void *pakMmap)
+void esp32_quake_main(int argc, char **argv, const char *basedir, const char *pakPath, uint32_t pakSize, const void *pakMmap)
 {
     mmap_pak_path = pakPath;
     mmap_pak_size = pakSize;
@@ -426,7 +425,7 @@ void esp32_quake_main(int argc, char **argv, const char *pakPath, uint32_t pakSi
 
     parms.memsize = 6700*1024;
     parms.membase = malloc(parms.memsize);
-    parms.basedir = "/";
+    parms.basedir = (char*)basedir;
 
     if (parms.membase == NULL)
         Sys_Error("membase allocation failed\n");
