@@ -105,9 +105,10 @@ And with its floating point performance, i'd say it's at least a... Quake-class 
 * Vanilla WinQuake at 320*240!
 * Sound has been rewritten from scratch to run on the second core
 * pak0.pak is read through raw **mmap**
+* Config files and savegamess work as intended
 * Requires 8 megs of RAM and at least 20 megabytes of flash for shareware pak0.pak, so N32R8V is the only supported module
-* Quake is VERY stack heavy - vanilla rendering takes up to 300kb of stack, so i had to move stack to PSRAM...
-* ...which disables FATFS spiflash routines, so no saves and configs :(
+* Quake is VERY stack heavy - vanilla rendering takes up to 300kb of stack, so i had to move stack to PSRAM
+* Running Quake from non-cache-disable-friendly task required creating a separate proxy task for FS operations
 * Haven't played Quake on a 486, but [i bet ESP32-S3 runs it better!](./doc/quake2.jpg)
 
 ### Quake demo (YouTube)
