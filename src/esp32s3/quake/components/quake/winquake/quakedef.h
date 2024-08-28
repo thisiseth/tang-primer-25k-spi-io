@@ -61,15 +61,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 typedef struct QUAKE_FILE QUAKE_FILE; 
 
 QUAKE_FILE* quake_fopen(const char* restrict name, const char* restrict type);
-int	quake_fclose(QUAKE_FILE *qfile);
-int	quake_fseek(QUAKE_FILE *qfile, long pos, int type);
+int quake_fclose(QUAKE_FILE *qfile);
+int quake_fseek(QUAKE_FILE *qfile, long pos, int type);
 size_t quake_fread(void* restrict buf, size_t size, size_t n, QUAKE_FILE* restrict qfile);
 size_t quake_fwrite(const void* restrict buf, size_t size, size_t n, QUAKE_FILE *qfile);
-int	quake_fprintf(QUAKE_FILE* restrict qfile, const char* restrict fmt, ...);
-int	quake_fscanf(QUAKE_FILE* restrict qfile, const char* restrict fmt, ...);
-int	quake_fgetc(QUAKE_FILE *qfile);
-int	quake_fflush(QUAKE_FILE *qfile);
-int	quake_feof(QUAKE_FILE *qfile);
+int quake_fprintf(QUAKE_FILE* restrict qfile, const char* restrict fmt, ...);
+int quake_fscanf(QUAKE_FILE* restrict qfile, const char* restrict fmt, ...);
+int quake_fgetc(QUAKE_FILE *qfile);
+int quake_fflush(QUAKE_FILE *qfile);
+int quake_feof(QUAKE_FILE *qfile);
 #endif
 
 #if defined(_WIN32) && !defined(WINDED)
