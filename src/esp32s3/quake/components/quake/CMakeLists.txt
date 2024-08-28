@@ -71,7 +71,7 @@ set(ESP32QUAKE_SRCS
 	esp32quake/vid_esp32.c
 	esp32quake/snd_esp32.c)
 
-idf_component_register(SRCS ${WINQUAKE_SRCS} ${ESP32QUAKE_SRCS} quake_main.c
+idf_component_register(SRCS ${WINQUAKE_SRCS} ${ESP32QUAKE_SRCS} quake_main.c fatfs_proxy.c
                     INCLUDE_DIRS "."
 					PRIV_INCLUDE_DIRS "winquake" "esp32quake"
                     REQUIRES fpga_driver freertos esp_timer

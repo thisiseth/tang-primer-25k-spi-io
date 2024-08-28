@@ -77,10 +77,10 @@ char	*ED_NewString (char *string);
 // returns a copy of the string allocated from the server's string heap
 
 void ED_Print (edict_t *ed);
-void ED_Write (FILE *f, edict_t *ed);
+void ED_Write (QUAKE_FILE *f, edict_t *ed);
 char *ED_ParseEdict (char *data, edict_t *ent);
 
-void ED_WriteGlobals (FILE *f);
+void ED_WriteGlobals (QUAKE_FILE *f);
 void ED_ParseGlobals (char *data);
 
 void ED_LoadFromFile (char *data);

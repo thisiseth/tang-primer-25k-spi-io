@@ -12,5 +12,5 @@ add_compile_definitions(ESP32_QUAKE_PAK_SIZE=${pak_size})
 add_compile_definitions(ESP32_QUAKE_PAK_NAME=\"${ESP32_QUAKE_PAK_NAME}\")
 
 #flashed always - comment out if tired of waiting when fixing stuff and reflashing
-#fatfs_create_spiflash_image(storage ../flash_rw FLASH_IN_PROJECT)
+fatfs_create_spiflash_image(storage ../flash_rw FLASH_IN_PROJECT)
 #esptool_py_flash_to_partition(flash pak ${pak_image})

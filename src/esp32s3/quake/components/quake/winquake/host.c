@@ -245,7 +245,7 @@ Writes key bindings and archived cvars to config.cfg
 */
 void Host_WriteConfiguration (void)
 {
-	FILE	*f;
+	QUAKE_FILE	*f;
 
 // dedicated servers initialize the host but don't parse and set the
 // config.cfg cvars

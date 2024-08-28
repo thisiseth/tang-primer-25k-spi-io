@@ -213,7 +213,7 @@ Writes lines containing "set variable value" for all variables
 with the archive flag set to true.
 ============
 */
-void Cvar_WriteVariables (FILE *f)
+void Cvar_WriteVariables (QUAKE_FILE *f)
 {
 	cvar_t	*var;
 	

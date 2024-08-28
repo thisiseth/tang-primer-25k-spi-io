@@ -447,7 +447,7 @@ void M_ScanSaves (void)
 {
 	int		i, j;
 	char	name[MAX_OSPATH];
-	FILE	*f;
+	QUAKE_FILE	*f;
 	int		version;
 
 	for (i=0 ; i<MAX_SAVEGAMES ; i++)
@@ -458,8 +458,8 @@ void M_ScanSaves (void)
 		f = quake_fopen (name, "r");
 		if (!f)
 			continue;
-		fscanf (f, "%i\n", &version);
-		fscanf (f, "%79s\n", name);
+		quake_fscanf (f, "%i\n", &version);
+		quake_fscanf (f, "%79s\n", name);
 		strncpy (m_filenames[i], name, sizeof(m_filenames[i])-1);
 
 	// change _ back to space

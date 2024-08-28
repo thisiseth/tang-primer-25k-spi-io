@@ -41,14 +41,32 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <math.h>
 #include <string.h>
 #include <stdarg.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <setjmp.h>
 
 #ifndef ESP32_QUAKE
-#define quake_fopen fopen 
+#include <stdio.h>
+#define QUAKE_FILE 		FILE
+
+#define quake_fopen 	fopen 
+#define quake_fclose 	fclose 
+#define quake_fseek 	fseek 
+#define quake_fread 	fread 
+#define quake_fwrite 	fwrite 
+#define quake_fprintf 	fprintf 
+#define quake_fscanf 	fscanf 
+#define quake_fgetc 	fgetc
 #else
-FILE* quake_fopen(const char *name, const char *type);
+typedef struct QUAKE_FILE QUAKE_FILE; 
+
+QUAKE_FILE* quake_fopen(const char* restrict name, const char* restrict type);
+int	quake_fclose(QUAKE_FILE *qfile);
+int	quake_fseek(QUAKE_FILE *qfile, long pos, int type);
+size_t quake_fread(void* restrict buf, size_t size, size_t n, QUAKE_FILE* restrict qfile);
+size_t quake_fwrite(const void* restrict buf, size_t size, size_t n, QUAKE_FILE *qfile);
+int	quake_fprintf(QUAKE_FILE* restrict qfile, const char* restrict fmt, ...);
+int	quake_fscanf(QUAKE_FILE* restrict qfile, const char* restrict fmt, ...);
+int	quake_fgetc(QUAKE_FILE *qfile);
 #endif
 
 #if defined(_WIN32) && !defined(WINDED)
@@ -224,13 +242,13 @@ void	VID_UnlockBuffer (void);
 
 typedef struct
 {
-	vec3_t	origin;
-	vec3_t	angles;
-	int		modelindex;
-	int		frame;
-	int		colormap;
-	int		skin;
-	int		effects;
+    vec3_t	origin;
+    vec3_t	angles;
+    int		modelindex;
+    int		frame;
+    int		colormap;
+    int		skin;
+    int		effects;
 } entity_state_t;
 
 
@@ -276,12 +294,12 @@ typedef struct
 
 typedef struct
 {
-	char	*basedir;
-	char	*cachedir;		// for development over ISDN lines
-	int		argc;
-	char	**argv;
-	void	*membase;
-	int		memsize;
+    char	*basedir;
+    char	*cachedir;		// for development over ISDN lines
+    int		argc;
+    char	**argv;
+    void	*membase;
+    int		memsize;
 } quakeparms_t;
 
 
@@ -307,7 +325,7 @@ extern	byte		*host_basepal;
 extern	byte		*host_colormap;
 extern	int			host_framecount;	// incremented every frame, never reset
 extern	double		realtime;			// not bounded in any way, changed at
-										// start of every frame, never reset
+                                        // start of every frame, never reset
 
 void Host_ClearMemory (void);
 void Host_ServerFrame (void);
@@ -322,10 +340,10 @@ void Host_ClientCommands (char *fmt, ...);
 void Host_ShutdownServer (qboolean crash);
 
 extern qboolean		msg_suppress_1;		// suppresses resolution and cache size console output
-										//  an fullscreen DIB focus gain/loss
+                                        //  an fullscreen DIB focus gain/loss
 extern int			current_skill;		// skill level for currently loaded level (in case
-										//  the user changes the cvar while the level is
-										//  running, this reflects the level actually in use)
+                                        //  the user changes the cvar while the level is
+                                        //  running, this reflects the level actually in use)
 
 extern qboolean		isDedicated;
 

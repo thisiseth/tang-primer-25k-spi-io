@@ -71,8 +71,8 @@ void user_task(void *arg)
 
     esp_partition_munmap(pak_mmap_handle);
 
-    //if (esp_vfs_fat_spiflash_unmount_rw_wl(FLASH_RW_BASE, flash_rw_wl_handle) != ESP_OK)
-    //    ESP_LOGE(TAG, "unable to unmount flash_rw");
+    if (esp_vfs_fat_spiflash_unmount_rw_wl(FLASH_RW_BASE, flash_rw_wl_handle) != ESP_OK)
+        ESP_LOGE(TAG, "unable to unmount flash_rw");
 
     vTaskDelete(NULL);
 }
@@ -84,7 +84,7 @@ void app_main(void)
         ESP_LOGE(TAG, "pmod board init failed");
         return;
     }
-
+    
     loading_led();
 
     fpga_driver_config_t driver_config = 
@@ -120,13 +120,13 @@ void app_main(void)
 
     esp_err_t err;
 
-    //err = esp_vfs_fat_spiflash_mount_rw_wl(FLASH_RW_BASE, "storage", &mount_config, &flash_rw_wl_handle);
+    err = esp_vfs_fat_spiflash_mount_rw_wl(FLASH_RW_BASE, "storage", &mount_config, &flash_rw_wl_handle);
     
-    //if (err != ESP_OK) 
-    //{
-    //    ESP_LOGE(TAG, "Failed to mount FATFS (%s)", esp_err_to_name(err));
-    //    abort_with_error_led();
-    //}
+    if (err != ESP_OK) 
+    {
+       ESP_LOGE(TAG, "Failed to mount FATFS (%s)", esp_err_to_name(err));
+       abort_with_error_led();
+    }
 
     const esp_partition_t *partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_UNDEFINED, "pak");
 

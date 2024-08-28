@@ -22,10 +22,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "errno.h"
 
 #include "esp_timer.h"
-#include <sys/stat.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/ringbuf.h"
 #include "fpga_driver.h"
+#include "fatfs_proxy.h"
 
 #define MAX_HANDLES 10
 
@@ -135,6 +135,144 @@ static int translate_hid_key(uint8_t keyCode)
     }
 }
 
+// quake stdio wrappers - had to do these to allow proxying the calls to fatfs_proxy 
+//- separate 'thread' (task) that does work in cache-disable context
+//as opposed to quake main task which has stack on PSRAM - spiflash operations are not allowed in this case
+
+struct QUAKE_FILE
+{
+    FILE *file;
+    bool isMemoryFile;
+};
+
+QUAKE_FILE* quake_fopen(const char* restrict name, const char* restrict type)
+{
+    FILE *file;
+    bool isMemoryFile;
+
+    if (strcmp(name, mmap_pak_path) == 0)
+    {
+        if (strcmp(type, "rb") != 0)
+            Sys_Error("quake_fopen: invalid mode %s for mmapped %s\n", type, name);
+
+        isMemoryFile = true;
+        file = fmemopen((void*)mmap_pak, mmap_pak_size, "rb");
+    }
+    else
+    {
+        isMemoryFile = false;
+        file = fatfs_proxy_fopen(name, type);
+    }
+
+    if (file == NULL)
+        return NULL;
+
+    QUAKE_FILE *qfile = malloc(sizeof(QUAKE_FILE));
+
+    if (qfile == NULL)
+        Sys_Error("quake_fopen: malloc for QUAKE_FILE failed");
+
+    qfile->file = file;
+    qfile->isMemoryFile = isMemoryFile;
+
+    return qfile;
+}
+
+int	quake_fclose(QUAKE_FILE *qfile)
+{
+    int ret;
+
+    if (qfile->isMemoryFile)
+        ret = fclose(qfile->file);
+    else   
+        ret = fatfs_proxy_fclose(qfile->file);
+
+    free(qfile);
+    return ret;
+}
+
+int quake_fseek(QUAKE_FILE *qfile, long pos, int type)
+{
+    int ret;
+
+    if (qfile->isMemoryFile)
+        ret = fseek(qfile->file, pos, type);
+    else   
+        ret = fatfs_proxy_fseek(qfile->file, pos, type);
+
+    return ret;
+}
+
+size_t quake_fread(void* restrict buf, size_t size, size_t n, QUAKE_FILE* restrict qfile)
+{
+    size_t ret;
+
+    if (qfile->isMemoryFile)
+        ret = fread(buf, size, n, qfile->file);
+    else   
+        ret = fatfs_proxy_fread(buf, size, n, qfile->file);
+
+    return ret;
+}
+
+size_t quake_fwrite(const void* restrict buf, size_t size, size_t n, QUAKE_FILE *qfile)
+{
+    size_t ret;
+    
+    if (qfile->isMemoryFile)
+        ret = fwrite(buf, size, n, qfile->file);
+    else   
+        ret = fatfs_proxy_fwrite(buf, size, n, qfile->file);
+
+    return ret;
+}
+
+int quake_fprintf(QUAKE_FILE* restrict qfile, const char* restrict fmt, ...)
+{
+    int ret;
+    va_list args;
+
+    va_start(args, fmt);
+
+    if (qfile->isMemoryFile)
+        ret = vfprintf(qfile->file, fmt, args);
+    else   
+        ret = fatfs_proxy_vfprintf(qfile->file, fmt, args);
+
+    va_end(args);
+
+    return ret;
+}
+
+int quake_fscanf(QUAKE_FILE* restrict qfile, const char* restrict fmt, ...)
+{
+    int ret;
+    va_list args;
+
+    va_start(args, fmt);
+
+    if (qfile->isMemoryFile)
+        ret = vfscanf(qfile->file, fmt, args);
+    else   
+        ret = fatfs_proxy_vfscanf(qfile->file, fmt, args);
+
+    va_end(args);
+
+    return ret;
+}
+
+int quake_fgetc(QUAKE_FILE *qfile)
+{
+    int ret;
+
+    if (qfile->isMemoryFile)
+        ret = fgetc(qfile->file);
+    else
+        ret = fatfs_proxy_fgetc(qfile->file);
+
+    return ret;
+}
+
 /*
 ===============================================================================
 
@@ -160,10 +298,10 @@ static int filelength(FILE *f)
     int pos;
     int end;
 
-    pos = ftell(f);
-    fseek(f, 0, SEEK_END);
-    end = ftell(f);
-    fseek(f, pos, SEEK_SET);
+    pos = fatfs_proxy_ftell(f);
+    fatfs_proxy_fseek(f, 0, SEEK_END);
+    end = fatfs_proxy_ftell(f);
+    fatfs_proxy_fseek(f, pos, SEEK_SET);
 
     return end;
 }
@@ -187,7 +325,7 @@ int Sys_FileOpenRead(char *path, int *hndl)
         return mmap_pak_size;
     }
 
-    f = fopen(path, "rb");
+    f = fatfs_proxy_fopen(path, "rb");
     if (!f)
     {
         *hndl = -1;
@@ -214,7 +352,7 @@ int Sys_FileOpenWrite(char *path)
 
     i = findhandle();
 
-    f = fopen(path, "wb");
+    f = fatfs_proxy_fopen(path, "wb");
 
     if (!f)
         Sys_Error ("Error opening %s: %s", path,strerror(errno));
@@ -229,7 +367,7 @@ void Sys_FileClose(int handle)
 {
     if (sys_handles[handle].file != NULL)
     {
-        fclose(sys_handles[handle].file);
+        fatfs_proxy_fclose(sys_handles[handle].file);
         sys_handles[handle].file = NULL;
     }
 
@@ -246,7 +384,7 @@ void Sys_FileSeek(int handle, int position)
         return;
     }
 
-    fseek(sys_handles[handle].file, position, SEEK_SET);
+    fatfs_proxy_fseek(sys_handles[handle].file, position, SEEK_SET);
 }
 
 int Sys_FileRead(int handle, void *dest, int count)
@@ -266,14 +404,14 @@ int Sys_FileRead(int handle, void *dest, int count)
         return count;
     }
 
-    return fread(dest, 1, count, sys_handles[handle].file);
+    return fatfs_proxy_fread(dest, 1, count, sys_handles[handle].file);
 }
 
 int Sys_FileWrite(int handle, void *data, int count)
 {
     assert(sys_handles[handle].isOpen && sys_handles[handle].file != NULL);
 
-    return fwrite(data, 1, count, sys_handles[handle].file);
+    return fatfs_proxy_fwrite(data, 1, count, sys_handles[handle].file);
 }
 
 int Sys_FileTime(char *path)
@@ -283,10 +421,10 @@ int Sys_FileTime(char *path)
     if (!strcmp(path, mmap_pak_path))
         return 1;
 
-    f = fopen(path, "rb");
+    f = fatfs_proxy_fopen(path, "rb");
     if (f)
     {
-        fclose(f);
+        fatfs_proxy_fclose(f);
         return 1;
     }
     
@@ -295,7 +433,7 @@ int Sys_FileTime(char *path)
 
 void Sys_mkdir(char *path)
 {    
-    if (mkdir(path, 0755) != 0)
+    if (fatfs_proxy_mkdir(path, 0755) != 0)
         printf("Sys_mkdir: unable to create %s: %s\n", path, strerror(errno));
 }
 
@@ -329,16 +467,16 @@ void Sys_Error(char *error, ...)
     va_end (argptr);
     printf ("\n");
 
-    exit (1);
+    abort();
 }
 
 void Sys_Printf(char *fmt, ...)
 {
-    va_list         argptr;
+    va_list argptr;
     
-    va_start (argptr,fmt);
-    vprintf (fmt,argptr);
-    va_end (argptr);
+    va_start(argptr,fmt);
+    vprintf(fmt,argptr);
+    va_end(argptr);
 }
 
 void Sys_Quit(void)
@@ -400,19 +538,6 @@ void Sys_LowFPPrecision(void)
     //not a 486
 }
 
-FILE* quake_fopen(const char *name, const char *type)
-{
-    if (!strcmp(name, mmap_pak_path))
-    {
-        if (strcmp(type, "rb"))
-            Sys_Error("quake_fopen: invalid mode %s for mmapped %s\n", type, name);
-
-        return fmemopen((void*)mmap_pak, mmap_pak_size, "rb");
-    }
-
-    return fopen(name, type);
-}
-
 //=============================================================================
 
 static quakeparms_t parms;
@@ -430,13 +555,13 @@ void esp32_quake_main(int argc, char **argv, const char *basedir, const char *pa
     if (parms.membase == NULL)
         Sys_Error("membase allocation failed\n");
 
-    COM_InitArgv (argc, argv);
+    COM_InitArgv(argc, argv);
 
     parms.argc = com_argc;
     parms.argv = com_argv;
 
     printf ("Host_Init\n");
-    Host_Init (&parms);
+    Host_Init(&parms);
     
     hid_ringbuf = xRingbufferCreateWithCaps((sizeof(fpga_driver_hid_event_t)+8)*128, RINGBUF_TYPE_NOSPLIT, MALLOC_CAP_INTERNAL);
 
@@ -444,12 +569,6 @@ void esp32_quake_main(int argc, char **argv, const char *basedir, const char *pa
         Sys_Error("unable to allocate hid_ringbuf\n");
 
     fpga_driver_register_hid_event_cb(hid_callback);
-
-    Cbuf_AddText("bind w +forward\n");
-    Cbuf_AddText("bind s +back\n");
-    Cbuf_AddText("bind a +moveleft\n");
-    Cbuf_AddText("bind d +moveright\n");
-    Cbuf_AddText("+mlook\n");
 
     ////////////////
 

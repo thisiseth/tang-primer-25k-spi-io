@@ -1356,7 +1356,7 @@ void COM_CopyFile (char *netpath, char *cachepath)
 
 const void* Sys_FileGetMmapBase(int handle);
 
-static int COM_FindFile_ESP32(char *filename, int *handle, FILE **file, const void **mmap)
+static int COM_FindFile_ESP32(char *filename, int *handle, QUAKE_FILE **file, const void **mmap)
 {
     searchpath_t    *search;
     char            netpath[MAX_OSPATH];
@@ -1480,7 +1480,7 @@ Finds the file in the search path.
 Sets com_filesize and one of handle or file
 ===========
 */
-static inline int COM_FindFile(char *filename, int *handle, FILE **file)
+static inline int COM_FindFile(char *filename, int *handle, QUAKE_FILE **file)
 {
     return COM_FindFile_ESP32(filename, handle, file, NULL);
 }
@@ -1495,7 +1495,7 @@ Finds the file in the search path.
 Sets com_filesize and one of handle or file
 ===========
 */
-int COM_FindFile (char *filename, int *handle, FILE **file)
+int COM_FindFile (char *filename, int *handle, QUAKE_FILE **file)
 {
     searchpath_t    *search;
     char            netpath[MAX_OSPATH];
@@ -1629,7 +1629,7 @@ If the requested file is inside a packfile, a new FILE * will be opened
 into the file.
 ===========
 */
-int COM_FOpenFile (char *filename, FILE **file)
+int COM_FOpenFile (char *filename, QUAKE_FILE **file)
 {
     return COM_FindFile (filename, NULL, file);
 }

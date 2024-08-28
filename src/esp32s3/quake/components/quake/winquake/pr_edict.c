@@ -482,7 +482,7 @@ ED_Write
 For savegames
 =============
 */
-void ED_Write (FILE *f, edict_t *ed)
+void ED_Write (QUAKE_FILE *f, edict_t *ed)
 {
 	ddef_t	*d;
 	int		*v;
@@ -613,7 +613,7 @@ FIXME: need to tag constants, doesn't really work
 ED_WriteGlobals
 =============
 */
-void ED_WriteGlobals (FILE *f)
+void ED_WriteGlobals (QUAKE_FILE *f)
 {
 	ddef_t		*def;
 	int			i;
