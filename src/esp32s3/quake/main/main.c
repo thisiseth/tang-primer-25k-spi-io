@@ -62,6 +62,18 @@ static void running_led(void)
     pmod_esp32s3_led_set_rgb(0, 2, 0);
 #endif
 }
+
+static void restart()
+{
+#ifndef PMOD_OCTAL_SPI_IN_USE
+    pmod_esp32s3_led_set_green(false);
+    pmod_esp32s3_led_set_pink(false);
+#else
+    pmod_esp32s3_led_set_rgb(8, 8, 8);
+#endif
+
+    abort();
+}
     
 void user_task(void *arg)
 {
@@ -156,5 +168,10 @@ void app_main(void)
     esp_partition_munmap(pak_mmap_handle);
 
     if (esp_vfs_fat_spiflash_unmount_rw_wl(FLASH_RW_BASE, flash_rw_wl_handle) != ESP_OK)
+    {
         ESP_LOGE(TAG, "unable to unmount flash_rw");
+        abort_with_error_led();
+    }
+
+    restart();
 }

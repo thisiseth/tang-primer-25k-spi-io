@@ -168,7 +168,7 @@ size_t fatfs_proxy_fread(void * restrict buf, size_t size, size_t n, FILE * rest
 {
     proxy_buf = buf;
     proxy_size = size;
-    proxy_int = n;
+    proxy_long = n;
     proxy_file = file;
     proxy_operation = FATFS_PROXY_OPERATION_FREAD;
 
