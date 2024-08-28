@@ -309,7 +309,12 @@ static IRAM_ATTR void audio_callback(uint32_t *buffer, int *sampleCount, int max
             if (pos >= length)
             {
                 if (channels_render_copy[i].sfx->cache.loopStart < 0)
+                {
+                    channels_render_copy[i].sfx = NULL;
+                    channels_render_copy[i].end = paintedTimeCopy + j;
+
                     break; //no loop - thats all
+                }
 
                 pos = cache.loopStart * ESP32_SOUND_STEP + pos % length;
                 channels_render_copy[i].end = (paintedTimeCopy + j) + ((length - pos) / cache.stepFixedPoint);
@@ -372,10 +377,11 @@ static IRAM_ATTR void audio_callback(uint32_t *buffer, int *sampleCount, int max
     xSemaphoreTake(sound_mutex, portMAX_DELAY);
 
     for (int i = 0; i < totalChannelsCopy; ++i)
-        if (channels_render_copy[i].sfx != NULL && 
-            channels[i].sfx == channels_render_copy[i].sfx &&
-            channels[i].pos == channelPositions[i]) //if channel was modified - ignore
+        if (((channels[i].sfx != NULL && channels_render_copy[i].sfx == NULL) || //borderline hack - check if channel was either stopped during processing
+            channels[i].sfx == channels_render_copy[i].sfx) && //or its SFX is the same
+            channels[i].pos == channelPositions[i]) //AND the pos is the same as was before the processing - was not restarted or else
         {
+            channels[i].sfx = channels_render_copy[i].sfx;
             channels[i].pos = channels_render_copy[i].pos;
             channels[i].end = channels_render_copy[i].end;
         }
