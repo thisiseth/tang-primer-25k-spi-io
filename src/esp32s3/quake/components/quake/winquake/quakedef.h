@@ -40,12 +40,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include <math.h>
 #include <string.h>
+#include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <setjmp.h>
 
 #ifndef ESP32_QUAKE
-#include <stdio.h>
 #define QUAKE_FILE 		FILE
 
 #define quake_fopen 	fopen 
@@ -56,6 +56,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define quake_fprintf 	fprintf 
 #define quake_fscanf 	fscanf 
 #define quake_fgetc 	fgetc
+#define quake_fflush 	fflush
 #else
 typedef struct QUAKE_FILE QUAKE_FILE; 
 
@@ -67,6 +68,8 @@ size_t quake_fwrite(const void* restrict buf, size_t size, size_t n, QUAKE_FILE 
 int	quake_fprintf(QUAKE_FILE* restrict qfile, const char* restrict fmt, ...);
 int	quake_fscanf(QUAKE_FILE* restrict qfile, const char* restrict fmt, ...);
 int	quake_fgetc(QUAKE_FILE *qfile);
+int	quake_fflush(QUAKE_FILE *qfile);
+int	quake_feof(QUAKE_FILE *qfile);
 #endif
 
 #if defined(_WIN32) && !defined(WINDED)

@@ -29,7 +29,7 @@ static const void *pak_mmap;
 
 static EXT_RAM_BSS_ATTR uint8_t quake_task_stack[ESP32_QUAKE_TASK_STACK_SIZE];
 static DMA_ATTR StaticTask_t quake_task_internal;
-static TaskHandle_t quake_task;
+static volatile TaskHandle_t quake_task;
 
 static void abort_with_error_led(void)
 {
@@ -69,11 +69,7 @@ void user_task(void *arg)
 
     quake_main(FLASH_RW_BASE"/", FLASH_RW_BASE"/id1/"ESP32_QUAKE_PAK_NAME, ESP32_QUAKE_PAK_SIZE, pak_mmap);
 
-    esp_partition_munmap(pak_mmap_handle);
-
-    if (esp_vfs_fat_spiflash_unmount_rw_wl(FLASH_RW_BASE, flash_rw_wl_handle) != ESP_OK)
-        ESP_LOGE(TAG, "unable to unmount flash_rw");
-
+    quake_task = NULL;
     vTaskDelete(NULL);
 }
 
@@ -148,7 +144,7 @@ void app_main(void)
         abort_with_error_led();
     }
 
-    for (;;)
+    while (quake_task != NULL)
     {
         vTaskDelay(5000 / portTICK_PERIOD_MS);
         ESP_LOGI(TAG, "free heap: all: %lu internal: %lu, task stack watermark: %u", 
@@ -156,4 +152,9 @@ void app_main(void)
                 esp_get_free_internal_heap_size(),
                 uxTaskGetStackHighWaterMark(quake_task));
     }
+
+    esp_partition_munmap(pak_mmap_handle);
+
+    if (esp_vfs_fat_spiflash_unmount_rw_wl(FLASH_RW_BASE, flash_rw_wl_handle) != ESP_OK)
+        ESP_LOGE(TAG, "unable to unmount flash_rw");
 }

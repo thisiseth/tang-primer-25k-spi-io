@@ -261,7 +261,7 @@ void Host_WriteConfiguration (void)
 		Key_WriteBindings (f);
 		Cvar_WriteVariables (f);
 
-		fclose (f);
+		quake_fclose (f);
 	}
 }
 

@@ -86,4 +86,5 @@ target_compile_options(${COMPONENT_LIB} PRIVATE
 					   "-Wno-pointer-sign"
 					   "-Wno-trigraphs"
 					   "-Wno-dangling-pointer"
-					   "-fcommon")
+					   "-fcommon"
+					   "-Werror=incompatible-pointer-types")

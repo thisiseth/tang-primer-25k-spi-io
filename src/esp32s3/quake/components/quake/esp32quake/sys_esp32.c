@@ -273,6 +273,30 @@ int quake_fgetc(QUAKE_FILE *qfile)
     return ret;
 }
 
+int	quake_fflush(QUAKE_FILE *qfile)
+{
+    int ret;
+
+    if (qfile->isMemoryFile)
+        ret = fflush(qfile->file);
+    else
+        ret = fatfs_proxy_fflush(qfile->file);
+
+    return ret;
+}
+
+int	quake_feof(QUAKE_FILE *qfile)
+{
+    int ret;
+
+    if (qfile->isMemoryFile)
+        ret = feof(qfile->file);
+    else
+        ret = fatfs_proxy_feof(qfile->file);
+
+    return ret;
+}
+
 /*
 ===============================================================================
 

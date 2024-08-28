@@ -17,6 +17,11 @@ typedef enum
     FATFS_PROXY_OPERATION_FTELL,
     FATFS_PROXY_OPERATION_FREAD,
     FATFS_PROXY_OPERATION_FWRITE,
+    FATFS_PROXY_OPERATION_VFPRINTF,
+    FATFS_PROXY_OPERATION_VFSCANF,
+    FATFS_PROXY_OPERATION_FGETC,
+    FATFS_PROXY_OPERATION_FFLUSH,
+    FATFS_PROXY_OPERATION_FEOF,
     FATFS_PROXY_OPERATION_MKDIR
 } fatfs_proxy_operation_t;
 
@@ -30,11 +35,12 @@ static DRAM_ATTR const char *proxy_path;
 static DRAM_ATTR const char *proxy_mode;
 static DRAM_ATTR FILE *proxy_file;
 static DRAM_ATTR void *proxy_buf;
+static DRAM_ATTR mode_t proxy_mkdir_mode;
+static DRAM_ATTR va_list* proxy_args;
 
 static DRAM_ATTR long proxy_long;
 static DRAM_ATTR int proxy_int;
 static DRAM_ATTR size_t proxy_size;
-static DRAM_ATTR mode_t proxy_mkdir_mode;
 
 static IRAM_ATTR void fatfs_task()
 {
@@ -61,6 +67,21 @@ static IRAM_ATTR void fatfs_task()
                 break;
             case FATFS_PROXY_OPERATION_FWRITE:
                 proxy_size = fwrite(proxy_buf, proxy_size, proxy_long, proxy_file);
+                break;
+            case FATFS_PROXY_OPERATION_VFPRINTF:
+                proxy_return_value = vfprintf(proxy_file, proxy_path, *proxy_args);
+                break;
+            case FATFS_PROXY_OPERATION_VFSCANF:
+                proxy_return_value = vfscanf(proxy_file, proxy_path, *proxy_args);
+                break;
+            case FATFS_PROXY_OPERATION_FGETC:
+                proxy_return_value = fgetc(proxy_file);
+                break;
+            case FATFS_PROXY_OPERATION_FFLUSH:
+                proxy_return_value = fflush(proxy_file);
+                break;
+            case FATFS_PROXY_OPERATION_FEOF:
+                proxy_return_value = feof(proxy_file);
                 break;
             case FATFS_PROXY_OPERATION_MKDIR:
                 proxy_return_value = mkdir(proxy_path, proxy_mkdir_mode);
@@ -169,11 +190,65 @@ size_t fatfs_proxy_fwrite(const void * restrict buf, size_t size, size_t n, FILE
     return proxy_size;
 }
 
+int	fatfs_proxy_vfprintf(FILE* restrict file, const char* restrict fmt, va_list args)
+{
+    proxy_file = file;
+    proxy_path = fmt;
+    proxy_args = &args;
+    proxy_operation = FATFS_PROXY_OPERATION_VFPRINTF;
+
+    fatfs_do();
+
+    return proxy_return_value;
+}
+
+int	fatfs_proxy_vfscanf(FILE* restrict file, const char* restrict fmt, va_list args)
+{
+    proxy_file = file;
+    proxy_path = fmt;
+    proxy_args = &args;
+    proxy_operation = FATFS_PROXY_OPERATION_VFSCANF;
+
+    fatfs_do();
+    
+    return proxy_return_value;
+}
+
+int	fatfs_proxy_fgetc(FILE *file)
+{
+    proxy_file = file;
+    proxy_operation = FATFS_PROXY_OPERATION_FGETC;
+
+    fatfs_do();
+
+    return proxy_return_value;
+}
+
+int	fatfs_proxy_fflush(FILE *file)
+{
+    proxy_file = file;
+    proxy_operation = FATFS_PROXY_OPERATION_FFLUSH;
+
+    fatfs_do();
+
+    return proxy_return_value;
+}
+
+int	fatfs_proxy_feof(FILE *file)
+{
+    proxy_file = file;
+    proxy_operation = FATFS_PROXY_OPERATION_FEOF;
+
+    fatfs_do();
+
+    return proxy_return_value;
+}
+
 int	fatfs_proxy_mkdir(const char *path, mode_t mode)
 {
     proxy_path = path;
     proxy_mkdir_mode = mode;
-    proxy_operation = proxy_return_value;
+    proxy_operation = FATFS_PROXY_OPERATION_MKDIR;
 
     fatfs_do();
 

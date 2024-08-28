@@ -522,23 +522,23 @@ void Host_Savegame_f (void)
 		return;
 	}
 	
-	fprintf (f, "%i\n", SAVEGAME_VERSION);
+	quake_fprintf (f, "%i\n", SAVEGAME_VERSION);
 	Host_SavegameComment (comment);
-	fprintf (f, "%s\n", comment);
+	quake_fprintf (f, "%s\n", comment);
 	for (i=0 ; i<NUM_SPAWN_PARMS ; i++)
-		fprintf (f, "%f\n", svs.clients->spawn_parms[i]);
-	fprintf (f, "%d\n", current_skill);
-	fprintf (f, "%s\n", sv.name);
-	fprintf (f, "%f\n",sv.time);
+		quake_fprintf (f, "%f\n", svs.clients->spawn_parms[i]);
+	quake_fprintf (f, "%d\n", current_skill);
+	quake_fprintf (f, "%s\n", sv.name);
+	quake_fprintf (f, "%f\n",sv.time);
 
 // write the light styles
 
 	for (i=0 ; i<MAX_LIGHTSTYLES ; i++)
 	{
 		if (sv.lightstyles[i])
-			fprintf (f, "%s\n", sv.lightstyles[i]);
+			quake_fprintf (f, "%s\n", sv.lightstyles[i]);
 		else
-			fprintf (f,"m\n");
+			quake_fprintf (f,"m\n");
 	}
 
 
@@ -546,9 +546,9 @@ void Host_Savegame_f (void)
 	for (i=0 ; i<sv.num_edicts ; i++)
 	{
 		ED_Write (f, EDICT_NUM(i));
-		fflush (f);
+		quake_fflush (f);
 	}
-	fclose (f);
+	quake_fclose (f);
 	Con_Printf ("done.\n");
 }
 
@@ -600,7 +600,7 @@ void Host_Loadgame_f (void)
 	quake_fscanf (f, "%i\n", &version);
 	if (version != SAVEGAME_VERSION)
 	{
-		fclose (f);
+		quake_fclose (f);
 		Con_Printf ("Savegame is version %i, not %i\n", version, SAVEGAME_VERSION);
 		return;
 	}
@@ -647,11 +647,11 @@ void Host_Loadgame_f (void)
 
 // load the edicts out of the savegame file
 	entnum = -1;		// -1 is the globals
-	while (!feof(f))
+	while (!quake_feof(f))
 	{
 		for (i=0 ; i<sizeof(str)-1 ; i++)
 		{
-			r = fgetc (f);
+			r = quake_fgetc (f);
 			if (r == EOF || !r)
 				break;
 			str[i] = r;
@@ -694,7 +694,7 @@ void Host_Loadgame_f (void)
 	sv.num_edicts = entnum;
 	sv.time = time;
 
-	fclose (f);
+	quake_fclose (f);
 
 	for (i=0 ; i<NUM_SPAWN_PARMS ; i++)
 		svs.clients->spawn_parms[i] = spawn_parms[i];
@@ -725,23 +725,23 @@ void SaveGamestate()
 		return;
 	}
 	
-	fprintf (f, "%i\n", SAVEGAME_VERSION);
+	quake_fprintf (f, "%i\n", SAVEGAME_VERSION);
 	Host_SavegameComment (comment);
-	fprintf (f, "%s\n", comment);
+	quake_fprintf (f, "%s\n", comment);
 //	for (i=0 ; i<NUM_SPAWN_PARMS ; i++)
 //		fprintf (f, "%f\n", svs.clients->spawn_parms[i]);
-	fprintf (f, "%f\n", skill.value);
-	fprintf (f, "%s\n", sv.name);
-	fprintf (f, "%f\n", sv.time);
+	quake_fprintf (f, "%f\n", skill.value);
+	quake_fprintf (f, "%s\n", sv.name);
+	quake_fprintf (f, "%f\n", sv.time);
 
 // write the light styles
 
 	for (i=0 ; i<MAX_LIGHTSTYLES ; i++)
 	{
 		if (sv.lightstyles[i])
-			fprintf (f, "%s\n", sv.lightstyles[i]);
+			quake_fprintf (f, "%s\n", sv.lightstyles[i]);
 		else
-			fprintf (f,"m\n");
+			quake_fprintf (f,"m\n");
 	}
 
 
@@ -750,11 +750,11 @@ void SaveGamestate()
 		ent = EDICT_NUM(i);
 		if ((int)ent->v.flags & FL_ARCHIVE_OVERRIDE)
 			continue;
-		fprintf (f, "%i\n",i);
+		quake_fprintf (f, "%i\n",i);
 		ED_Write (f, ent);
-		fflush (f);
+		quake_fflush (f);
 	}
-	fclose (f);
+	quake_fclose (f);
 	Con_Printf ("done.\n");
 }
 
@@ -784,7 +784,7 @@ int LoadGamestate(char *level, char *startspot)
 	quake_fscanf (f, "%i\n", &version);
 	if (version != SAVEGAME_VERSION)
 	{
-		fclose (f);
+		quake_fclose (f);
 		Con_Printf ("Savegame is version %i, not %i\n", version, SAVEGAME_VERSION);
 		return -1;
 	}
@@ -814,12 +814,12 @@ int LoadGamestate(char *level, char *startspot)
 	}
 
 // load the edicts out of the savegame file
-	while (!feof(f))
+	while (!quake_feof(f))
 	{
 		quake_fscanf (f, "%i\n",&entnum);
 		for (i=0 ; i<sizeof(str)-1 ; i++)
 		{
-			r = fgetc (f);
+			r = quake_fgetc (f);
 			if (r == EOF || !r)
 				break;
 			str[i] = r;
@@ -853,7 +853,7 @@ int LoadGamestate(char *level, char *startspot)
 	
 //	sv.num_edicts = entnum;
 	sv.time = time;
-	fclose (f);
+	quake_fclose (f);
 
 //	for (i=0 ; i<NUM_SPAWN_PARMS ; i++)
 //		svs.clients->spawn_parms[i] = spawn_parms[i];

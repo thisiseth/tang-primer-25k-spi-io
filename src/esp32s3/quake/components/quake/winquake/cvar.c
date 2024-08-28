@@ -219,6 +219,6 @@ void Cvar_WriteVariables (QUAKE_FILE *f)
 	
 	for (var = cvar_vars ; var ; var = var->next)
 		if (var->archive)
-			fprintf (f, "%s \"%s\"\n", var->name, var->string);
+			quake_fprintf (f, "%s \"%s\"\n", var->name, var->string);
 }
 

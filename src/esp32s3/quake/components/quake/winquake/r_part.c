@@ -237,7 +237,7 @@ void R_ReadPointFile_f (void)
 		VectorCopy (org, p->org);
 	}
 
-	fclose (f);
+	quake_fclose (f);
 	Con_Printf ("%i points read\n", c);
 }
 

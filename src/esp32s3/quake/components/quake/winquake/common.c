@@ -1401,7 +1401,7 @@ static int COM_FindFile_ESP32(char *filename, int *handle, QUAKE_FILE **file, co
                     {       // open a new file on the pakfile
                         *file = quake_fopen (pak->filename, "rb");
                         if (*file)
-                            fseek (*file, pak->files[i].filepos, SEEK_SET);
+                            quake_fseek (*file, pak->files[i].filepos, SEEK_SET);
                     }
                     else //mmap
                     {
@@ -1539,7 +1539,7 @@ int COM_FindFile (char *filename, int *handle, QUAKE_FILE **file)
                     {       // open a new file on the pakfile
                         *file = quake_fopen (pak->filename, "rb");
                         if (*file)
-                            fseek (*file, pak->files[i].filepos, SEEK_SET);
+                            quake_fseek (*file, pak->files[i].filepos, SEEK_SET);
                     }
                     com_filesize = pak->files[i].filelen;
                     return com_filesize;
