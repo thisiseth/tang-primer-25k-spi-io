@@ -47,17 +47,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #ifndef ESP32_QUAKE
 
-#define QUAKE_FILE 		FILE
+#define QUAKE_FILE      FILE
 
-#define quake_fopen 	fopen 
-#define quake_fclose 	fclose 
-#define quake_fseek 	fseek 
-#define quake_fread 	fread 
-#define quake_fwrite 	fwrite 
-#define quake_fprintf 	fprintf 
-#define quake_fscanf 	fscanf 
-#define quake_fgetc 	fgetc
-#define quake_fflush 	fflush
+#define quake_fopen     fopen 
+#define quake_fclose    fclose 
+#define quake_fseek     fseek 
+#define quake_fread     fread 
+#define quake_fwrite    fwrite 
+#define quake_fprintf   fprintf 
+#define quake_fscanf    fscanf 
+#define quake_fgetc     fgetc
+#define quake_fflush    fflush
 
 #else
 
